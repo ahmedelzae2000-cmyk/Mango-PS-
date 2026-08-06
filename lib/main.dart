@@ -118,8 +118,14 @@ class DevicesScreen extends StatelessWidget {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance.collection('devices').snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
-        final docs = snapshot.data!.docs;
+        if (snapshot.hasError) {
+          return const Center(child: Text('حدث خطأ في الاتصال بقاعدة البيانات', style: TextStyle(color: Colors.redAccent)));
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+        }
+
+        final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
           return const Center(child: Text('لا توجد أجهزة مسجلة، ضف أجهزة من الإعدادات', style: TextStyle(color: Colors.grey)));
@@ -135,8 +141,9 @@ class DevicesScreen extends StatelessWidget {
             mainAxisSpacing: 12,
           ),
           itemBuilder: (context, index) {
-            final data = docs[index].data() as Map<String, dynamic>;
-            final isRunning = data['isRunning'] ?? false;
+            final data = docs[index].id;
+            final item = docs[index].data() as Map<String, dynamic>;
+            final isRunning = item['isRunning'] ?? false;
 
             return Container(
               decoration: BoxDecoration(
@@ -149,13 +156,13 @@ class DevicesScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(data['name'] ?? 'جهاز', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    Text(data['type'] ?? 'PS4', style: const TextStyle(color: Colors.deepOrange)),
+                    Text(item['name'] ?? 'جهاز', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(item['type'] ?? 'PS4', style: const TextStyle(color: Colors.deepOrange)),
                     Text(isRunning ? 'شغال' : 'متاح', style: TextStyle(color: isRunning ? Colors.green : Colors.grey)),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: isRunning ? Colors.red : Colors.green),
                       onPressed: () {
-                        FirebaseFirestore.instance.collection('devices').doc(docs[index].id).update({'isRunning': !isRunning});
+                        FirebaseFirestore.instance.collection('devices').doc(data).update({'isRunning': !isRunning});
                       },
                       child: Text(isRunning ? 'إنهاء الجلسة' : 'بدء الجلسة', style: const TextStyle(color: Colors.white)),
                     )
@@ -170,7 +177,7 @@ class DevicesScreen extends StatelessWidget {
   }
 }
 
-// 2. شاشة المصاريف (تسجيل الخصومات والمصروفات الحالية)
+// 2. شاشة المصاريف
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
 
@@ -243,8 +250,14 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('expenses').orderBy('timestamp', descending: true).snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
-                final docs = snapshot.data!.docs;
+                if (snapshot.hasError) {
+                  return const Center(child: Text('حدث خطأ أثناء الاتصال', style: TextStyle(color: Colors.redAccent)));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                }
+
+                final docs = snapshot.data?.docs ?? [];
 
                 if (docs.isEmpty) {
                   return const Center(child: Text('لا توجد مصروفات مسجلة اليوم', style: TextStyle(color: Colors.grey)));
@@ -274,7 +287,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 }
 
-// 3. شاشة الوردية (12 ظهراً لـ 12 ظهراً)
+// 3. شاشة الوردية
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
 
@@ -382,60 +395,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showAddDeviceDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E24),
-        title: const Text('إضافة جهاز جديد', style: TextStyle(color: Colors.deepOrange)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: _deviceNameController,
-              decoration: const InputDecoration(labelText: 'اسم الجهاز (مثلاً: جهاز 1)'),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E24),
+          title: const Text('إضافة جهاز جديد', style: TextStyle(color: Colors.deepOrange)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _deviceNameController,
+                decoration: const InputDecoration(labelText: 'اسم الجهاز (مثلاً: جهاز 1)'),
+              ),
+              DropdownButton<String>(
+                value: _selectedType,
+                isExpanded: true,
+                dropdownColor: const Color(0xFF1E1E24),
+                items: ['PS4', 'PS5'].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                onChanged: (val) {
+                  if (val != null) {
+                    setDialogState(() => _selectedType = val);
+                  }
+                },
+              ),
+              TextField(
+                controller: _singleRateController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'سعر الساعة سنجل (ج.م)'),
+              ),
+              TextField(
+                controller: _multiRateController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'سعر الساعة ملتي (ج.م)'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
             ),
-            DropdownButton<String>(
-              value: _selectedType,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF1E1E24),
-              items: ['PS4', 'PS5'].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
-              onChanged: (val) => setState(() => _selectedType = val!),
-            ),
-            TextField(
-              controller: _singleRateController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'سعر الساعة سنجل (ج.م)'),
-            ),
-            TextField(
-              controller: _multiRateController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'سعر الساعة ملتي (ج.م)'),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+              onPressed: () async {
+                if (_deviceNameController.text.isNotEmpty) {
+                  await FirebaseFirestore.instance.collection('devices').add({
+                    'name': _deviceNameController.text,
+                    'type': _selectedType,
+                    'singleRate': double.tryParse(_singleRateController.text) ?? 0.0,
+                    'multiRate': double.tryParse(_multiRateController.text) ?? 0.0,
+                    'isRunning': false,
+                  });
+                  _deviceNameController.clear();
+                  _singleRateController.clear();
+                  _multiRateController.clear();
+                  if (mounted) Navigator.pop(context);
+                }
+              },
+              child: const Text('حفظ الجهاز', style: TextStyle(color: Colors.white)),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
-            onPressed: () async {
-              if (_deviceNameController.text.isNotEmpty) {
-                await FirebaseFirestore.instance.collection('devices').add({
-                  'name': _deviceNameController.text,
-                  'type': _selectedType,
-                  'singleRate': double.tryParse(_singleRateController.text) ?? 0.0,
-                  'multiRate': double.tryParse(_multiRateController.text) ?? 0.0,
-                  'isRunning': false,
-                });
-                _deviceNameController.clear();
-                _singleRateController.clear();
-                _multiRateController.clear();
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('حفظ الجهاز', style: TextStyle(color: Colors.white)),
-          ),
-        ],
       ),
     );
   }
@@ -485,6 +504,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  void _deleteDevice(String docId) async {
+    await FirebaseFirestore.instance.collection('devices').doc(docId).delete();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -505,8 +528,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance.collection('devices').snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
-                final docs = snapshot.data!.docs;
+                if (snapshot.hasError) {
+                  return const Center(child: Text('حدث خطأ أثناء تحميل البيانات', style: TextStyle(color: Colors.redAccent)));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                }
+
+                final docs = snapshot.data?.docs ?? [];
 
                 if (docs.isEmpty) {
                   return const Center(child: Text('لا توجد أجهزة مسجلة حالياً', style: TextStyle(color: Colors.grey)));
@@ -528,9 +557,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       child: ListTile(
                         title: Text('$name ($type)', style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text('سنجل: $singleRate ج.م | ملتي: $multiRate ج.م'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.edit, color: Colors.deepOrange),
-                          onPressed: () => _showEditPriceDialog(docId, name, singleRate, multiRate),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.edit, color: Colors.deepOrange),
+                              onPressed: () => _showEditPriceDialog(docId, name, singleRate, multiRate),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.delete, color: Colors.redAccent),
+                              onPressed: () => _deleteDevice(docId),
+                            ),
+                          ],
                         ),
                       ),
                     );
@@ -544,4 +582,3 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
- 
