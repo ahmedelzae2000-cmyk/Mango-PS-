@@ -1,0 +1,32 @@
+name: mango_ps
+description: "تطبيق إدارة محل بلايستيشن - Manga PS"
+publish_to: 'none' # يمنع النشر على pub.dev
+
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # مكتبات Firebase الأساسية
+  firebase_core: ^3.1.0
+  cloud_firestore: ^5.0.1
+
+  # أيكونات إضافية (اختياري)
+  cupertino_icons: ^1.0.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  # تعريف الصور المستخدمة في التطبيق
+  assets:
+    - assets/logo.jpg
+    - assets/bg.jpg
