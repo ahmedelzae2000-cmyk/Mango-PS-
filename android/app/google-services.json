@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "603196411064",
+    "project_id": "mango-ps",
+    "storage_bucket": "mango-ps.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:603196411064:android:d52c31f8e22f77e69ef84d",
+        "android_client_info": {
+          "package_name": "com.mangaps.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB5UujdLmnqFvmujV3FSwSH2iI0L-78jk4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
