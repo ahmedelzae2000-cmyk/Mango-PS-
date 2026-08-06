@@ -109,9 +109,64 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   }
 }
 
-// 1. شاشة الأجهزة
+// 1. شاشة الأجهزة (مع التوقيت وحساب التكلفة)
 class DevicesScreen extends StatelessWidget {
   const DevicesScreen({super.key});
+
+  void _toggleSession(BuildContext context, String docId, Map<String, dynamic> data) async {
+    final isRunning = data['isRunning'] ?? false;
+
+    if (!isRunning) {
+      // بدء الجلسة
+      await FirebaseFirestore.instance.collection('devices').doc(docId).update({
+        'isRunning': true,
+        'startTime': FieldValue.serverTimestamp(),
+        'mode': 'single', // الافتراضي سنجل
+      });
+    } else {
+      // إنهاء الجلسة وحساب الحساب
+      Timestamp? startTimestamp = data['startTime'];
+      DateTime startTime = startTimestamp?.toDate() ?? DateTime.now();
+      DateTime endTime = DateTime.now();
+      Duration duration = endTime.difference(startTime);
+
+      double rate = (data['mode'] == 'multi') 
+          ? (data['multiRate'] ?? 0.0).toDouble() 
+          : (data['singleRate'] ?? 0.0).toDouble();
+
+      double hours = duration.inMinutes / 60.0;
+      double totalCost = hours * rate;
+
+      // إيقاف الجهاز
+      await FirebaseFirestore.instance.collection('devices').doc(docId).update({
+        'isRunning': false,
+        'startTime': null,
+      });
+
+      // حفظ الجلسة في الحسابات
+      await FirebaseFirestore.instance.collection('sessions').add({
+        'deviceName': data['name'],
+        'durationMinutes': duration.inMinutes,
+        'amount': totalCost,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+
+      showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          backgroundColor: const Color(0xFF1E1E24),
+          title: Text('إنهاء جلسة ${data['name']}'),
+          content: Text('الوقت: ${duration.inMinutes} دقيقة\nالمبلغ المطلوبة: ${totalCost.toStringAsFixed(2)} ج.م'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('تم', style: TextStyle(color: Colors.deepOrange)),
+            )
+          ],
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -119,7 +174,7 @@ class DevicesScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('devices').snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Center(child: Text('حدث خطأ في الاتصال بقاعدة البيانات', style: TextStyle(color: Colors.redAccent)));
+          return const Center(child: Text('خطأ في الاتصال بالخادم', style: TextStyle(color: Colors.redAccent)));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
@@ -128,7 +183,7 @@ class DevicesScreen extends StatelessWidget {
         final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
-          return const Center(child: Text('لا توجد أجهزة مسجلة، ضف أجهزة من الإعدادات', style: TextStyle(color: Colors.grey)));
+          return const Center(child: Text('لا توجد أجهزة، ضف من الإعدادات', style: TextStyle(color: Colors.grey)));
         }
 
         return GridView.builder(
@@ -136,14 +191,15 @@ class DevicesScreen extends StatelessWidget {
           itemCount: docs.length,
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: 2,
-            childAspectRatio: 0.75,
+            childAspectRatio: 0.7,
             crossAxisSpacing: 12,
             mainAxisSpacing: 12,
           ),
           itemBuilder: (context, index) {
-            final data = docs[index].id;
-            final item = docs[index].data() as Map<String, dynamic>;
-            final isRunning = item['isRunning'] ?? false;
+            final docId = docs[index].id;
+            final data = docs[index].data() as Map<String, dynamic>;
+            final isRunning = data['isRunning'] ?? false;
+            final mode = data['mode'] ?? 'single';
 
             return Container(
               decoration: BoxDecoration(
@@ -152,19 +208,35 @@ class DevicesScreen extends StatelessWidget {
                 border: Border.all(color: isRunning ? Colors.green : Colors.white10),
               ),
               child: Padding(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(10),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(item['name'] ?? 'جهاز', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                    Text(item['type'] ?? 'PS4', style: const TextStyle(color: Colors.deepOrange)),
+                    Text(data['name'] ?? 'جهاز', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text(data['type'] ?? 'PS4', style: const TextStyle(color: Colors.deepOrange)),
+                    if (isRunning) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ChoiceChip(
+                            label: const Text('سنجل', style: TextStyle(fontSize: 10)),
+                            selected: mode == 'single',
+                            onSelected: (_) => FirebaseFirestore.instance.collection('devices').doc(docId).update({'mode': 'single'}),
+                          ),
+                          const SizedBox(width: 4),
+                          ChoiceChip(
+                            label: const Text('ملتي', style: TextStyle(fontSize: 10)),
+                            selected: mode == 'multi',
+                            onSelected: (_) => FirebaseFirestore.instance.collection('devices').doc(docId).update({'mode': 'multi'}),
+                          ),
+                        ],
+                      ),
+                    ],
                     Text(isRunning ? 'شغال' : 'متاح', style: TextStyle(color: isRunning ? Colors.green : Colors.grey)),
                     ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: isRunning ? Colors.red : Colors.green),
-                      onPressed: () {
-                        FirebaseFirestore.instance.collection('devices').doc(data).update({'isRunning': !isRunning});
-                      },
-                      child: Text(isRunning ? 'إنهاء الجلسة' : 'بدء الجلسة', style: const TextStyle(color: Colors.white)),
+                      onPressed: () => _toggleSession(context, docId, data),
+                      child: Text(isRunning ? 'إنهاء وحساب' : 'بدء الجلسة', style: const TextStyle(color: Colors.white)),
                     )
                   ],
                 ),
@@ -287,42 +359,67 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 }
 
-// 3. شاشة الوردية
+// 3. شاشة الوردية (حساب إجمالي الأجهزة والمصاريف تلقائياً)
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Card(
-            color: const Color(0xFF1E1E24).withOpacity(0.9),
-            child: const ListTile(
-              title: Text('توقيت الوردية الحالية'),
-              subtitle: Text('من 12:00 ظهراً إلى 12:00 ظهراً اليوم التالي'),
-              trailing: Icon(Icons.timer, color: Colors.deepOrange),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _buildInfoCard('كاش', '0 ج.م', Colors.green)),
-              const SizedBox(width: 10),
-              Expanded(child: _buildInfoCard('انستا باي', '0 ج.م', Colors.blue)),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(child: _buildInfoCard('المصروفات', '0 ج.م', Colors.redAccent)),
-              const SizedBox(width: 10),
-              Expanded(child: _buildInfoCard('الصافي', '0 ج.م', Colors.deepOrange)),
-            ],
-          ),
-        ],
-      ),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance.collection('sessions').snapshots(),
+      builder: (context, sessionSnap) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('expenses').snapshots(),
+          builder: (context, expenseSnap) {
+            double totalIncome = 0.0;
+            double totalExpenses = 0.0;
+
+            if (sessionSnap.hasData) {
+              for (var doc in sessionSnap.data!.docs) {
+                totalIncome += (doc['amount'] ?? 0.0).toDouble();
+              }
+            }
+
+            if (expenseSnap.hasData) {
+              for (var doc in expenseSnap.data!.docs) {
+                totalExpenses += (doc['amount'] ?? 0.0).toDouble();
+              }
+            }
+
+            double netTotal = totalIncome - totalExpenses;
+
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Card(
+                    color: const Color(0xFF1E1E24).withOpacity(0.9),
+                    child: const ListTile(
+                      title: Text('توقيت الوردية الحالية'),
+                      subtitle: Text('من 12:00 ظهراً إلى 12:00 ظهراً اليوم التالي'),
+                      trailing: Icon(Icons.timer, color: Colors.deepOrange),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildInfoCard('إجمالي الأجهزة', '${totalIncome.toStringAsFixed(1)} ج.م', Colors.green)),
+                      const SizedBox(width: 10),
+                      Expanded(child: _buildInfoCard('المصروفات', '${totalExpenses.toStringAsFixed(1)} ج.م', Colors.redAccent)),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      Expanded(child: _buildInfoCard('الصافي الحالي', '${netTotal.toStringAsFixed(1)} ج.م', Colors.deepOrange)),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -582,3 +679,4 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 }
+ 
