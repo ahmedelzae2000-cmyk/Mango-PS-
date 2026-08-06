@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -50,6 +49,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
   Widget build(BuildContext context) {
     final List<Widget> screens = [
       const DevicesScreen(),
+      const ExpensesScreen(),
       const ShiftScreen(),
       const ReportsScreen(),
       const SettingsScreen(),
@@ -62,7 +62,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
           children: [
             ClipRRect(
               borderRadius: BorderRadius.circular(8),
-              child: Image.asset('assets/logo.jpg', height: 32, width: 32, errorBuilder: (_, __, ___) => const Icon(Icons.sports_esports, color: Colors.deepOrange)),
+              child: Image.asset(
+                'assets/logo.jpg',
+                height: 32,
+                width: 32,
+                errorBuilder: (_, __, ___) => const Icon(Icons.sports_esports, color: Colors.deepOrange),
+              ),
             ),
             const SizedBox(width: 10),
             const Text('MANGO PS', style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1.2)),
@@ -94,6 +99,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> {
         unselectedItemColor: Colors.grey,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.tv), label: 'الأجهزة'),
+          BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
           BottomNavigationBarItem(icon: Icon(Icons.access_time), label: 'الوردية'),
           BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
           BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
@@ -164,7 +170,111 @@ class DevicesScreen extends StatelessWidget {
   }
 }
 
-// 2. شاشة الوردية (12 ظهراً لـ 12 ظهراً)
+// 2. شاشة المصاريف (تسجيل الخصومات والمصروفات الحالية)
+class ExpensesScreen extends StatefulWidget {
+  const ExpensesScreen({super.key});
+
+  @override
+  State<ExpensesScreen> createState() => _ExpensesScreenState();
+}
+
+class _ExpensesScreenState extends State<ExpensesScreen> {
+  final _titleController = TextEditingController();
+  final _amountController = TextEditingController();
+
+  void _addExpense() async {
+    if (_titleController.text.isNotEmpty && _amountController.text.isNotEmpty) {
+      final double? amount = double.tryParse(_amountController.text);
+      if (amount != null) {
+        await FirebaseFirestore.instance.collection('expenses').add({
+          'title': _titleController.text,
+          'amount': amount,
+          'timestamp': FieldValue.serverTimestamp(),
+        });
+        _titleController.clear();
+        _amountController.clear();
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E1E24).withOpacity(0.9),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(
+              children: [
+                TextField(
+                  controller: _titleController,
+                  decoration: const InputDecoration(labelText: 'سبب المصروف (مثلاً: صيانات أو شاي)'),
+                ),
+                TextField(
+                  controller: _amountController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'المبلغ (ج.م)'),
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.deepOrange,
+                    minimumSize: const Size(double.infinity, 45),
+                  ),
+                  onPressed: _addExpense,
+                  icon: const Icon(Icons.add, color: Colors.white),
+                  label: const Text('تسجيل المصروف', style: TextStyle(color: Colors.white, fontSize: 16)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Align(
+            alignment: Alignment.centerRight,
+            child: Text('المصروفات المسجلة اليوم:', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          ),
+          const SizedBox(height: 10),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('expenses').orderBy('timestamp', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                final docs = snapshot.data!.docs;
+
+                if (docs.isEmpty) {
+                  return const Center(child: Text('لا توجد مصروفات مسجلة اليوم', style: TextStyle(color: Colors.grey)));
+                }
+
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    return Card(
+                      color: const Color(0xFF1E1E24).withOpacity(0.9),
+                      margin: const EdgeInsets.only(bottom: 8),
+                      child: ListTile(
+                        leading: const Icon(Icons.money_off, color: Colors.redAccent),
+                        title: Text(data['title'] ?? ''),
+                        trailing: Text('${data['amount']} ج.م', style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 16)),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 3. شاشة الوردية (12 ظهراً لـ 12 ظهراً)
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
 
@@ -222,7 +332,7 @@ class ShiftScreen extends StatelessWidget {
   }
 }
 
-// 3. شاشة التقارير
+// 4. شاشة التقارير
 class ReportsScreen extends StatelessWidget {
   const ReportsScreen({super.key});
 
@@ -255,46 +365,183 @@ class ReportsScreen extends StatelessWidget {
   }
 }
 
-// 4. شاشة الإعدادات والأسعار
-class SettingsScreen extends StatelessWidget {
+// 5. شاشة الإعدادات والأسعار
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  final _deviceNameController = TextEditingController();
+  final _singleRateController = TextEditingController();
+  final _multiRateController = TextEditingController();
+  String _selectedType = 'PS4';
+
+  void _showAddDeviceDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title: const Text('إضافة جهاز جديد', style: TextStyle(color: Colors.deepOrange)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _deviceNameController,
+              decoration: const InputDecoration(labelText: 'اسم الجهاز (مثلاً: جهاز 1)'),
+            ),
+            DropdownButton<String>(
+              value: _selectedType,
+              isExpanded: true,
+              dropdownColor: const Color(0xFF1E1E24),
+              items: ['PS4', 'PS5'].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+              onChanged: (val) => setState(() => _selectedType = val!),
+            ),
+            TextField(
+              controller: _singleRateController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'سعر الساعة سنجل (ج.م)'),
+            ),
+            TextField(
+              controller: _multiRateController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'سعر الساعة ملتي (ج.م)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+            onPressed: () async {
+              if (_deviceNameController.text.isNotEmpty) {
+                await FirebaseFirestore.instance.collection('devices').add({
+                  'name': _deviceNameController.text,
+                  'type': _selectedType,
+                  'singleRate': double.tryParse(_singleRateController.text) ?? 0.0,
+                  'multiRate': double.tryParse(_multiRateController.text) ?? 0.0,
+                  'isRunning': false,
+                });
+                _deviceNameController.clear();
+                _singleRateController.clear();
+                _multiRateController.clear();
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('حفظ الجهاز', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showEditPriceDialog(String docId, String currentName, double currentSingle, double currentMulti) {
+    final singleCtrl = TextEditingController(text: currentSingle.toString());
+    final multiCtrl = TextEditingController(text: currentMulti.toString());
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E24),
+        title: Text('تعديل سعر $currentName', style: const TextStyle(color: Colors.deepOrange)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: singleCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'سعر السنجل الجديد'),
+            ),
+            TextField(
+              controller: multiCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'سعر الملتي الجديد'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange),
+            onPressed: () async {
+              await FirebaseFirestore.instance.collection('devices').doc(docId).update({
+                'singleRate': double.tryParse(singleCtrl.text) ?? currentSingle,
+                'multiRate': double.tryParse(multiCtrl.text) ?? currentMulti,
+              });
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('تحديث السعر', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: ListView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text('تعديل أسعار الأجهزة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
-          const SizedBox(height: 10),
-          ListTile(
-            tileColor: const Color(0xFF1E1E24).withOpacity(0.9),
-            title: const Text('PS4 - سنجل / ملتي'),
-            trailing: const Icon(Icons.edit, color: Colors.deepOrange),
-          ),
-          const SizedBox(height: 8),
-          ListTile(
-            tileColor: const Color(0xFF1E1E24).withOpacity(0.9),
-            title: const Text('PS5 - سنجل / ملتي'),
-            trailing: const Icon(Icons.edit, color: Colors.deepOrange),
-          ),
-          const SizedBox(height: 20),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.deepOrange, padding: const EdgeInsets.all(12)),
-            onPressed: () {
-              FirebaseFirestore.instance.collection('devices').add({
-                'name': 'جهاز جديد',
-                'type': 'PS5',
-                'singleRate': 40.0,
-                'multiRate': 60.0,
-                'isRunning': false,
-              });
-            },
+            onPressed: _showAddDeviceDialog,
             icon: const Icon(Icons.add, color: Colors.white),
-            label: const Text('إضافة جهاز جديد', style: TextStyle(color: Colors.white)),
-          )
+            label: const Text('إضافة جهاز جديد', style: TextStyle(color: Colors.white, fontSize: 16)),
+          ),
+          const SizedBox(height: 20),
+          const Text('قائمة الأجهزة والأسعار الحالية', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 10),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance.collection('devices').snapshots(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator(color: Colors.deepOrange));
+                final docs = snapshot.data!.docs;
+
+                if (docs.isEmpty) {
+                  return const Center(child: Text('لا توجد أجهزة مسجلة حالياً', style: TextStyle(color: Colors.grey)));
+                }
+
+                return ListView.builder(
+                  itemCount: docs.length,
+                  itemBuilder: (context, index) {
+                    final data = docs[index].data() as Map<String, dynamic>;
+                    final docId = docs[index].id;
+                    final name = data['name'] ?? 'جهاز';
+                    final type = data['type'] ?? 'PS4';
+                    final singleRate = (data['singleRate'] ?? 0.0).toDouble();
+                    final multiRate = (data['multiRate'] ?? 0.0).toDouble();
+
+                    return Card(
+                      color: const Color(0xFF1E1E24).withOpacity(0.9),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      child: ListTile(
+                        title: Text('$name ($type)', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('سنجل: $singleRate ج.م | ملتي: $multiRate ج.م'),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.edit, color: Colors.deepOrange),
+                          onPressed: () => _showEditPriceDialog(docId, name, singleRate, multiRate),
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
   }
 }
+ 
