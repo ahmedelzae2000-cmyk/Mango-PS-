@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
-import 'home_screen.dart'; // سننشئها في الخطوة القادمة
+import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -27,21 +27,27 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.login(
-      _passwordController.text.trim(),
-      _selectedRole,
-    );
-
-    setState(() => _isLoading = false);
-
-    if (success && mounted) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      final success = await authProvider.login(
+        _passwordController.text.trim(),
+        _selectedRole,
       );
-    } else {
-      setState(() => _errorMessage = 'الرقم السري غير صحيح');
+
+      if (success && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+        );
+      } else {
+        if (mounted) setState(() => _errorMessage = 'الرقم السري غير صحيح');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _errorMessage = 'حدث خطأ في الاتصال');
+    } finally {
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -49,9 +55,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: const BoxDecoration(
-          color: Color(0xFF121212),
-        ),
+        color: const Color(0xFF121212),
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(24.0),
@@ -80,8 +84,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-                    
-                    // اختيار نوع الحساب
                     Row(
                       children: [
                         Expanded(
@@ -112,8 +114,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     const SizedBox(height: 20),
-
-                    // إدخال كلمة السر
                     TextField(
                       controller: _passwordController,
                       obscureText: true,
@@ -130,8 +130,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       onSubmitted: (_) => _handleLogin(),
                     ),
                     const SizedBox(height: 24),
-
-                    // زر الدخول
                     SizedBox(
                       width: double.infinity,
                       height: 50,
