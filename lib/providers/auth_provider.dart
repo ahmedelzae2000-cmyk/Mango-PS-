@@ -17,17 +17,30 @@ class AuthProvider with ChangeNotifier {
   Future<bool> login(String password, UserRole role) async {
     try {
       final docKey = role == UserRole.admin ? 'admin_pass' : 'staff_pass';
-      final doc = await _firestore.collection('settings').doc('auth').get();
+      
+      // إضافة timeout لمنع التعليق اللانهائي
+      final doc = await _firestore
+          .collection('settings')
+          .doc('auth')
+          .get()
+          .timeout(
+        const Duration(seconds: 5),
+        onTimeout: () {
+          throw Exception('Timeout connection to Firestore');
+        },
+      );
 
       String correctPassword;
-      if (doc.exists && doc.data()!.containsKey(docKey)) {
+      if (doc.exists && doc.data() != null && doc.data()!.containsKey(docKey)) {
         correctPassword = doc.data()![docKey];
       } else {
         // كلمات السر الافتراضية في أول مرة تشغيل
         correctPassword = role == UserRole.admin ? '123456' : '112233';
-        await _firestore.collection('settings').doc('auth').set({
+        
+        // محاولة حفظ الكلمة الافتراضية بدون تعطيل العملية الرئيسية
+        _firestore.collection('settings').doc('auth').set({
           docKey: correctPassword,
-        }, SetOptions(merge: true));
+        }, SetOptions(merge: true)).catchError((e) => debugPrint('Error saving default pass: $e'));
       }
 
       if (password == correctPassword) {
@@ -39,6 +52,15 @@ class AuthProvider with ChangeNotifier {
       return false;
     } catch (e) {
       debugPrint('خطأ في تسجيل الدخول: $e');
+      
+      // تجربة الدخول برقم السر الافتراضي إذا فشل الفايربيس
+      final defaultPass = role == UserRole.admin ? '123456' : '112233';
+      if (password == defaultPass) {
+        _currentRole = role;
+        _isLoggedIn = true;
+        notifyListeners();
+        return true;
+      }
       return false;
     }
   }
@@ -50,7 +72,7 @@ class AuthProvider with ChangeNotifier {
       final docKey = roleToUpdate == UserRole.admin ? 'admin_pass' : 'staff_pass';
       await _firestore.collection('settings').doc('auth').set({
         docKey: newPassword,
-      }, SetOptions(merge: true));
+      }, SetOptions(merge: true)).timeout(const Duration(seconds: 5));
       return true;
     } catch (e) {
       return false;
@@ -63,3 +85,4 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+ 
