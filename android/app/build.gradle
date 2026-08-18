@@ -38,7 +38,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.mangaps.app"
+        applicationId "com.mangaps.app1"
         minSdkVersion 21
         targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
