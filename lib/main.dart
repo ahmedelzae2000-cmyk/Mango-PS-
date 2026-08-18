@@ -12,16 +12,33 @@ import './services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
 
-  // تفعيل دعم الأوفلاين في Firebase
-  FirebaseFirestore.instance.settings = const Settings(
-    persistenceEnabled: true,
-    cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
-  );
+  // تهيئة الفايربيس مع حماية ضد التعليق
+  try {
+    await Firebase.initializeApp().timeout(
+      const Duration(seconds: 5),
+      onTimeout: () {
+        debugPrint('Firebase initialization timed out');
+        return Firebase.app();
+      },
+    );
 
-  // إعداد الإشعارات اللحظية
-  await NotificationService.initialize();
+    FirebaseFirestore.instance.settings = const Settings(
+      persistenceEnabled: true,
+      cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+    );
+  } catch (e) {
+    debugPrint('Firebase Error: $e');
+  }
+
+  // تهيئة الإشعارات بدون تعطيل التشغيل
+  try {
+    await NotificationService.initialize().timeout(
+      const Duration(seconds: 3),
+    );
+  } catch (e) {
+    debugPrint('Notification Error: $e');
+  }
 
   runApp(
     MultiProvider(
@@ -53,7 +70,6 @@ class MangaPsApp extends StatelessWidget {
       ],
       locale: const Locale('ar', 'EG'),
 
-      // الثيم الداكن (Dark Mode)
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         brightness: Brightness.dark,
