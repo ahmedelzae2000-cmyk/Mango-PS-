@@ -24,7 +24,7 @@ if (flutterVersionName == null) {
 }
 
 android {
-    namespace "com.mangaps.app"
+    namespace "com.mangaps.app1"
     compileSdkVersion 34
     ndkVersion flutter.ndkVersion
 
