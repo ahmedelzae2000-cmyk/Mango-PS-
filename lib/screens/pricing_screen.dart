@@ -82,7 +82,7 @@ class _PricingScreenState extends State<PricingScreen> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulWidgetBuilder(
+      builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('إضافة جهاز جديد'),
           content: Column(
