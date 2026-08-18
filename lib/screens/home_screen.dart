@@ -126,7 +126,7 @@ class _DeviceCard extends StatelessWidget {
                 Text(device.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 Chip(
                   label: Text(device.type, style: const TextStyle(fontSize: 10)),
-                  backgroundColor: Colors.black25,
+                  backgroundColor: Colors.black26,
                 ),
               ],
             ),
@@ -176,7 +176,7 @@ class _DeviceCard extends StatelessWidget {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulWidgetBuilder(
+      builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: Text('بدء جلسة - ${device.name}'),
           content: Column(
