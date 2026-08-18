@@ -5,10 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-import 'providers/auth_provider.dart';
-import 'providers/device_provider.dart';
-import 'screens/login_screen.dart';
-import 'services/notification_service.dart';
+import './providers/auth_provider.dart';
+import './providers/device_provider.dart';
+import './screens/login_screen.dart';
+import './services/notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
