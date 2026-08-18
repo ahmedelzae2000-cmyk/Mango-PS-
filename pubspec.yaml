@@ -1,7 +1,6 @@
-name: mango_ps
-description: "تطبيق إدارة محل بلايستيشن - Manga PS"
-publish_to: 'none' # يمنع النشر على pub.dev
-
+name: manga_ps
+description: "Manga PS - PlayStation Cafe Management System"
+publish_to: 'none'
 version: 1.0.0+1
 
 environment:
@@ -10,13 +9,19 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  
+  # Firebase
+  firebase_core: ^2.27.0
+  firebase_auth: ^4.17.8
+  cloud_firestore: ^4.15.8
+  firebase_messaging: ^14.7.19
 
-  # مكتبات Firebase الأساسية
-  firebase_core: ^3.1.0
-  cloud_firestore: ^5.0.1
-
-  # أيكونات إضافية (اختياري)
-  cupertino_icons: ^1.0.6
+  # State Management & Helpers
+  provider: ^6.1.2
+  intl: ^0.19.0
+  google_fonts: ^6.1.0
 
 dev_dependencies:
   flutter_test:
@@ -25,8 +30,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
-  # تعريف الصور المستخدمة في التطبيق
   assets:
-    - assets/logo.jpg
-    - assets/bg.jpg
+    - assets/images/ # ضع هنا خلفية التطبيق والأيقونات
