@@ -13,66 +13,51 @@ class AuthProvider with ChangeNotifier {
   bool get isLoggedIn => _isLoggedIn;
   bool get isAdmin => _currentRole == UserRole.admin;
 
-  // التحقق من الرقم السري وتسجيل الدخول
   Future<bool> login(String password, UserRole role) async {
+    final defaultPass = role == UserRole.admin ? '123456' : '112233';
+
     try {
       final docKey = role == UserRole.admin ? 'admin_pass' : 'staff_pass';
-      
-      // إضافة timeout لمنع التعليق اللانهائي
+
+      // المهلة 4 ثواني فقط لتجنب التحميل اللانهائي
       final doc = await _firestore
           .collection('settings')
           .doc('auth')
           .get()
-          .timeout(
-        const Duration(seconds: 5),
-        onTimeout: () {
-          throw Exception('Timeout connection to Firestore');
-        },
-      );
+          .timeout(const Duration(seconds: 4));
 
-      String correctPassword;
       if (doc.exists && doc.data() != null && doc.data()!.containsKey(docKey)) {
-        correctPassword = doc.data()![docKey];
-      } else {
-        // كلمات السر الافتراضية في أول مرة تشغيل
-        correctPassword = role == UserRole.admin ? '123456' : '112233';
-        
-        // محاولة حفظ الكلمة الافتراضية بدون تعطيل العملية الرئيسية
-        _firestore.collection('settings').doc('auth').set({
-          docKey: correctPassword,
-        }, SetOptions(merge: true)).catchError((e) => debugPrint('Error saving default pass: $e'));
+        final correctPassword = doc.data()![docKey];
+        if (password == correctPassword) {
+          _currentRole = role;
+          _isLoggedIn = true;
+          notifyListeners();
+          return true;
+        }
+        return false;
       }
-
-      if (password == correctPassword) {
-        _currentRole = role;
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      }
-      return false;
     } catch (e) {
-      debugPrint('خطأ في تسجيل الدخول: $e');
-      
-      // تجربة الدخول برقم السر الافتراضي إذا فشل الفايربيس
-      final defaultPass = role == UserRole.admin ? '123456' : '112233';
-      if (password == defaultPass) {
-        _currentRole = role;
-        _isLoggedIn = true;
-        notifyListeners();
-        return true;
-      }
-      return false;
+      debugPrint('Firestore Error/Timeout: $e');
     }
+
+    // الاعتماد على الرقم السري الافتراضي مباشرة عند حدوث مشكلة شبكة
+    if (password == defaultPass) {
+      _currentRole = role;
+      _isLoggedIn = true;
+      notifyListeners();
+      return true;
+    }
+
+    return false;
   }
 
-  // تغيير باسورد صاحب المحل أو الموظفين (لصاحب المحل فقط)
   Future<bool> updatePassword(UserRole roleToUpdate, String newPassword) async {
     if (!isAdmin) return false;
     try {
       final docKey = roleToUpdate == UserRole.admin ? 'admin_pass' : 'staff_pass';
       await _firestore.collection('settings').doc('auth').set({
         docKey: newPassword,
-      }, SetOptions(merge: true)).timeout(const Duration(seconds: 5));
+      }, SetOptions(merge: true)).timeout(const Duration(seconds: 4));
       return true;
     } catch (e) {
       return false;
@@ -85,4 +70,3 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 }
- 
