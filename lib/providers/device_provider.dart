@@ -16,6 +16,34 @@ class DeviceProvider extends ChangeNotifier {
     }
   }
 
+  // إضافة دالة addDevice بالوسائط التي تتوقعها الشاشات
+  Future<void> addDevice(String name, String type, {double singleRate = 20.0, double multiRate = 30.0}) async {
+    try {
+      final docRef = await FirebaseFirestore.instance.collection('devices').add({
+        'name': name,
+        'type': type,
+        'singleRate': singleRate,
+        'multiRate': multiRate,
+        'isOccupied': false,
+        'mode': 'single',
+        'paymentMethod': 'cash',
+        'startTime': null,
+      });
+
+      _devices.add(DeviceModel(
+        id: docRef.id,
+        name: name,
+        type: type,
+        singleRate: singleRate,
+        multiRate: multiRate,
+      ));
+
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error adding device: $e");
+    }
+  }
+
   double calculateCurrentCost(DeviceModel device) {
     if (!device.isOccupied || device.startTime == null) return 0.0;
     final now = DateTime.now();
@@ -25,14 +53,42 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<void> startSession(String deviceId, GameMode mode, PaymentMethod payment) async {
-    // كود بدء الجلسة لديك
+    final index = _devices.indexWhere((d) => d.id == deviceId);
+    if (index != -1) {
+      final now = DateTime.now();
+      _devices[index].isOccupied = true;
+      _devices[index].mode = mode;
+      _devices[index].paymentMethod = payment;
+      _devices[index].startTime = now;
+
+      notifyListeners();
+
+      await FirebaseFirestore.instance.collection('devices').doc(deviceId).update({
+        'isOccupied': true,
+        'mode': mode == GameMode.single ? 'single' : 'multi',
+        'paymentMethod': payment.name,
+        'startTime': Timestamp.fromDate(now),
+      });
+    }
   }
 
   Future<void> endSession(DeviceModel device) async {
-    // كود إنهاء الجلسة لديك
+    final index = _devices.indexWhere((d) => d.id == device.id);
+    if (index != -1) {
+      _devices[index].isOccupied = false;
+      _devices[index].startTime = null;
+
+      notifyListeners();
+
+      await FirebaseFirestore.instance.collection('devices').doc(device.id).update({
+        'isOccupied': false,
+        'startTime': null,
+      });
+    }
   }
 
   Future<void> updateCustomAmount(String deviceId, double amount) async {
-    // كود تعديل الحساب لديك
+    // إمكانية حفظ أو تسجيل الحساب المخصص
   }
 }
+ 
