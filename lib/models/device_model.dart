@@ -1,7 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum GameMode { single, multi }
-enum PaymentMethod { cash, vodafoneCash, instapay }
+enum PaymentMethod { cash, vodafone }
 
 class DeviceModel {
   final String id;
@@ -30,24 +30,14 @@ class DeviceModel {
     final data = doc.data() as Map<String, dynamic>? ?? {};
     return DeviceModel(
       id: doc.id,
-      name: data['name'] ?? 'جهاز',
+      name: data['name'] ?? '',
       type: data['type'] ?? 'PS4',
-      singleRate: (data['singleRate'] ?? 0).toDouble(),
-      multiRate: (data['multiRate'] ?? 0).toDouble(),
+      singleRate: (data['singleRate'] as num?)?.toDouble() ?? 20.0,
+      multiRate: (data['multiRate'] as num?)?.toDouble() ?? 30.0,
       isOccupied: data['isOccupied'] ?? false,
       mode: data['mode'] == 'multi' ? GameMode.multi : GameMode.single,
-      paymentMethod: _parsePayment(data['paymentMethod']),
-      startTime: data['startTime'] != null 
-          ? (data['startTime'] as Timestamp).toDate() 
-          : null,
+      paymentMethod: data['paymentMethod'] == 'vodafone' ? PaymentMethod.vodafone : PaymentMethod.cash,
+      startTime: data['startTime'] != null ? (data['startTime'] as Timestamp).toDate() : null,
     );
-  }
-
-  static PaymentMethod _parsePayment(String? method) {
-    switch (method) {
-      case 'vodafoneCash': return PaymentMethod.vodafoneCash;
-      case 'instapay': return PaymentMethod.instapay;
-      default: return PaymentMethod.cash;
-    }
   }
 }
