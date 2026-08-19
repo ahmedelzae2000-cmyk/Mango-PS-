@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
 import '../providers/auth_provider.dart';
+import '../models/device_model.dart';
 import 'pricing_screen.dart';
 import 'login_screen.dart';
 
@@ -28,8 +29,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manga PS - الشاشة الرئيسية'),
+        title: const Text('Manga PS'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => deviceProvider.loadDevices(),
+          ),
           IconButton(
             icon: const Icon(Icons.logout),
             onPressed: () {
@@ -48,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             UserAccountsDrawerHeader(
               accountName: Text(
-                authProvider.role == UserRole.admin ? 'حساب: صاحب المحل' : 'حساب: موظف',
+                authProvider.role == UserRole.admin ? 'صاحب المحل' : 'موظف',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
               accountEmail: const Text('Manga PS System'),
@@ -101,7 +106,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.85,
+                childAspectRatio: 0.8,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
@@ -109,8 +114,14 @@ class _HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) {
                 final device = deviceProvider.devices[index];
                 return Card(
-                  color: device.isOccupied ? Colors.red.shade900 : Colors.green.shade900,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  color: device.isOccupied ? const Color(0xFF2C1E1E) : const Color(0xFF1E2C1E),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(
+                      color: device.isOccupied ? Colors.red : Colors.green,
+                      width: 1.5,
+                    ),
+                  ),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Column(
@@ -118,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           device.name,
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
                         ),
                         Text(
                           'النوع: ${device.type}',
@@ -126,24 +137,34 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         Text(
                           device.isOccupied ? 'مشغول' : 'متاح',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                        ),
-                        ElevatedButton(
-                          onPressed: () {
-                            if (device.isOccupied) {
-                              deviceProvider.endSession(device);
-                            } else {
-                              deviceProvider.startSession(
-                                device.id,
-                                GameMode.single,
-                                PaymentMethod.cash,
-                              );
-                            }
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: device.isOccupied ? Colors.orange : Colors.blue,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
                           ),
-                          child: Text(device.isOccupied ? 'إنهاء الجلسة' : 'بدء جلسة'),
+                        ),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: () {
+                              if (device.isOccupied) {
+                                deviceProvider.endSession(device);
+                              } else {
+                                deviceProvider.startSession(
+                                  device.id,
+                                  GameMode.single,
+                                  PaymentMethod.cash,
+                                );
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: device.isOccupied ? Colors.red.shade700 : Colors.blue.shade700,
+                            ),
+                            child: Text(
+                              device.isOccupied ? 'إنهاء' : 'بدء',
+                              style: const TextStyle(color: Colors.white),
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -154,4 +175,3 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
- 
