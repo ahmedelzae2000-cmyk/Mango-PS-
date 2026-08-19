@@ -5,58 +5,49 @@ enum PaymentMethod { cash, vodafoneCash, instapay }
 
 class DeviceModel {
   final String id;
-  final String name; // مثل: PS4 - 1
-  final String type; // PS4 أو PS5
+  final String name;
+  final String type;
+  final double singleRate;
+  final double multiRate;
   bool isOccupied;
   GameMode mode;
   PaymentMethod paymentMethod;
   DateTime? startTime;
-  double customTotalAmount; // لتعديل الحساب قبل إنهاء الجلسة إن وجد
 
   DeviceModel({
     required this.id,
     required this.name,
     required this.type,
+    required this.singleRate,
+    required this.multiRate,
     this.isOccupied = false,
     this.mode = GameMode.single,
     this.paymentMethod = PaymentMethod.cash,
     this.startTime,
-    this.customTotalAmount = 0.0,
   });
 
-  // تحويل البيانات لـ Map لرفعها لـ Firestore
-  Map<String, dynamic> toMap() {
-    return {
-      'id': id,
-      'name': name,
-      'type': type,
-      'isOccupied': isOccupied,
-      'mode': mode.name,
-      'paymentMethod': paymentMethod.name,
-      'startTime': startTime != null ? Timestamp.fromDate(startTime!) : null,
-      'customTotalAmount': customTotalAmount,
-    };
+  factory DeviceModel.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>? ?? {};
+    return DeviceModel(
+      id: doc.id,
+      name: data['name'] ?? 'جهاز',
+      type: data['type'] ?? 'PS4',
+      singleRate: (data['singleRate'] ?? 0).toDouble(),
+      multiRate: (data['multiRate'] ?? 0).toDouble(),
+      isOccupied: data['isOccupied'] ?? false,
+      mode: data['mode'] == 'multi' ? GameMode.multi : GameMode.single,
+      paymentMethod: _parsePayment(data['paymentMethod']),
+      startTime: data['startTime'] != null 
+          ? (data['startTime'] as Timestamp).toDate() 
+          : null,
+    );
   }
 
-  // قراءة البيانات من Firestore
-  factory DeviceModel.fromMap(Map<String, dynamic> map, String docId) {
-    return DeviceModel(
-      id: docId,
-      name: map['name'] ?? '',
-      type: map['type'] ?? 'PS4',
-      isOccupied: map['isOccupied'] ?? false,
-      mode: GameMode.values.firstWhere(
-        (e) => e.name == map['mode'],
-        orElse: () => GameMode.single,
-      ),
-      paymentMethod: PaymentMethod.values.firstWhere(
-        (e) => e.name == map['paymentMethod'],
-        orElse: () => PaymentMethod.cash,
-      ),
-      startTime: map['startTime'] != null
-          ? (map['startTime'] as Timestamp).toDate()
-          : null,
-      customTotalAmount: (map['customTotalAmount'] ?? 0.0).toDouble(),
-    );
+  static PaymentMethod _parsePayment(String? method) {
+    switch (method) {
+      case 'vodafoneCash': return PaymentMethod.vodafoneCash;
+      case 'instapay': return PaymentMethod.instapay;
+      default: return PaymentMethod.cash;
+    }
   }
 }
