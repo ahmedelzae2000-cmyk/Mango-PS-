@@ -78,7 +78,25 @@ class HomeScreen extends StatelessWidget {
         ),
       ),
       body: deviceProvider.devices.isEmpty
-          ? const Center(child: Text('لا يوجد أجهزة مضافة حتى الآن'))
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.devices_other, size: 64, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text('لا يوجد أجهزة مضافة حتى الآن', style: TextStyle(fontSize: 18)),
+                  if (authProvider.isAdmin) ...[
+                    const SizedBox(height: 12),
+                    ElevatedButton(
+                      onPressed: () {
+                        Navigator.push(context, MaterialPageRoute(builder: (_) => const PricingScreen()));
+                      },
+                      child: const Text('إضافة أجهزة جديدة'),
+                    ),
+                  ],
+                ],
+              ),
+            )
           : GridView.builder(
               padding: const EdgeInsets.all(12),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
@@ -123,7 +141,13 @@ class _DeviceCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(device.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Expanded(
+                  child: Text(
+                    device.name,
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
                 Chip(
                   label: Text(device.type, style: const TextStyle(fontSize: 10)),
                   backgroundColor: Colors.black26,
@@ -189,7 +213,9 @@ class _DeviceCard extends StatelessWidget {
                   DropdownMenuItem(value: GameMode.single, child: Text('سنجل')),
                   DropdownMenuItem(value: GameMode.multi, child: Text('ملتي')),
                 ],
-                onChanged: (val) => setState(() => selectedMode = val!),
+                onChanged: (val) {
+                  if (val != null) setState(() => selectedMode = val);
+                },
               ),
               DropdownButton<PaymentMethod>(
                 value: selectedPayment,
@@ -199,7 +225,9 @@ class _DeviceCard extends StatelessWidget {
                   DropdownMenuItem(value: PaymentMethod.vodafoneCash, child: Text('فودافون كاش')),
                   DropdownMenuItem(value: PaymentMethod.instapay, child: Text('انستاباي')),
                 ],
-                onChanged: (val) => setState(() => selectedPayment = val!),
+                onChanged: (val) {
+                  if (val != null) setState(() => selectedPayment = val);
+                },
               ),
             ],
           ),
@@ -252,3 +280,4 @@ class _DeviceCard extends StatelessWidget {
     );
   }
 }
+ 
