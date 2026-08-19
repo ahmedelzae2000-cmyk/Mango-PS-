@@ -5,6 +5,9 @@ import '../providers/auth_provider.dart';
 import '../models/device_model.dart';
 import 'pricing_screen.dart';
 import 'login_screen.dart';
+import 'expense_screen.dart';
+import 'shift_screen.dart';
+import 'reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +25,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manga PS - شاشة الأجهزة'),
+        title: const Text('Manga PS'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -60,10 +63,43 @@ class _HomeScreenState extends State<HomeScreen> {
               title: const Text('شاشة الأجهزة الرئيسية'),
               onTap: () => Navigator.pop(context),
             ),
-            if (isAdmin)
+            ListTile(
+              leading: const Icon(Icons.access_time),
+              title: const Text('الوردية الحالية'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ShiftScreen()),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.receipt_long),
+              title: const Text('المصاريف'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ExpenseScreen()),
+                );
+              },
+            ),
+            if (isAdmin) ...[
               ListTile(
-                leading: const Icon(Icons.add_to_photos),
-                title: const Text('إدارة وإضافة الأجهزة والأسعار'),
+                leading: const Icon(Icons.bar_chart),
+                title: const Text('التقارير والإحصائيات'),
+                onTap: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const ReportsScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.settings),
+                title: const Text('إدارة الأسعار والأجهزة'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -72,6 +108,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+            ],
           ],
         ),
       ),
@@ -161,3 +198,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+ 
