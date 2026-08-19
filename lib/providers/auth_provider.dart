@@ -5,7 +5,13 @@ enum UserRole { admin, staff }
 
 class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
+  bool _isLoggedIn = false;
+  UserRole? _currentRole;
+
   bool get isLoading => _isLoading;
+  bool get isLoggedIn => _isLoggedIn;
+  UserRole? get currentRole => _currentRole;
+  bool get isAdmin => _currentRole == UserRole.admin;
 
   Future<bool> login(String password, UserRole role) async {
     _isLoading = true;
@@ -24,6 +30,8 @@ class AuthProvider extends ChangeNotifier {
         final correctPass = data[targetField]?.toString();
 
         if (correctPass != null && correctPass == password) {
+          _isLoggedIn = true;
+          _currentRole = role;
           _isLoading = false;
           notifyListeners();
           return true;
@@ -32,6 +40,8 @@ class AuthProvider extends ChangeNotifier {
 
       final defaultPass = role == UserRole.admin ? '123456' : '112233';
       if (password == defaultPass) {
+        _isLoggedIn = true;
+        _currentRole = role;
         _isLoading = false;
         notifyListeners();
         return true;
@@ -43,5 +53,11 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
     return false;
+  }
+
+  void logout() {
+    _isLoggedIn = false;
+    _currentRole = null;
+    notifyListeners();
   }
 }
