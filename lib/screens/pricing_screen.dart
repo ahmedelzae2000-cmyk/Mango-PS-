@@ -11,9 +11,7 @@ class PricingScreen extends StatefulWidget {
 
 class _PricingScreenState extends State<PricingScreen> {
   final _nameController = TextEditingController();
-  final _singleRateController = TextEditingController(text: '20');
-  final _multiRateController = TextEditingController(text: '30');
-  String _selectedType = 'PS4';
+  String _selectedType = 'PS5';
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +21,7 @@ class _PricingScreenState extends State<PricingScreen> {
       appBar: AppBar(
         title: const Text('إدارة الأجهزة والأسعار'),
       ),
-      body: SingleChildScrollView(
+      body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -36,40 +34,23 @@ class _PricingScreenState extends State<PricingScreen> {
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'اسم الجهاز (مثال: جهاز 1)',
+                labelText: 'اسم الجهاز (مثال: جهاز 3)',
                 border: OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedType,
+              items: const [
+                DropdownMenuItem(value: 'PS5', child: Text('PlayStation 5')),
+                DropdownMenuItem(value: 'PS4', child: Text('PlayStation 4')),
+                DropdownMenuItem(value: 'VR', child: Text('VR Headset')),
+              ],
+              onChanged: (value) {
+                if (value != null) setState(() => _selectedType = value);
+              },
               decoration: const InputDecoration(
                 labelText: 'نوع الجهاز',
-                border: OutlineInputBorder(),
-              ),
-              items: const [
-                DropdownMenuItem(value: 'PS4', child: Text('PS4')),
-                DropdownMenuItem(value: 'PS5', child: Text('PS5')),
-              ],
-              onChanged: (val) {
-                if (val != null) setState(() => _selectedType = val);
-              },
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _singleRateController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'سعر الساعة سنجل (ج.م)',
-                border: OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _multiRateController,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'سعر الساعة ملتي (ج.م)',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -77,26 +58,42 @@ class _PricingScreenState extends State<PricingScreen> {
             SizedBox(
               width: double.infinity,
               height: 48,
-              child: ElevatedButton(
+              child: ElevatedButton.icon(
+                icon: const Icon(Icons.add),
+                label: const Text('حفظ وإضافة الجهاز'),
                 onPressed: () {
-                  if (_nameController.text.trim().isEmpty) return;
-
-                  final single = double.tryParse(_singleRateController.text) ?? 20.0;
-                  final multi = double.tryParse(_multiRateController.text) ?? 30.0;
-
-                  deviceProvider.addDevice(
-                    _nameController.text.trim(),
-                    _selectedType,
-                    singleRate: single,
-                    multiRate: multi,
-                  );
-
-                  _nameController.clear();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('تمت إضافة الجهاز بنجاح')),
+                  if (_nameController.text.trim().isNotEmpty) {
+                    deviceProvider.addDevice(
+                      _nameController.text.trim(),
+                      _selectedType,
+                    );
+                    _nameController.clear();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تمت إضافة الجهاز بنجاح!')),
+                    );
+                  }
+                },
+              ),
+            ),
+            const SizedBox(height: 24),
+            const Text(
+              'الأجهزة الحالية',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: ListView.builder(
+                itemCount: deviceProvider.devices.length,
+                itemBuilder: (context, index) {
+                  final device = deviceProvider.devices[index];
+                  return Card(
+                    child: ListTile(
+                      leading: const Icon(Icons.sports_esports),
+                      title: Text(device.name),
+                      subtitle: Text('النوع: ${device.type}'),
+                    ),
                   );
                 },
-                child: const Text('حفظ الجهاز'),
               ),
             ),
           ],
