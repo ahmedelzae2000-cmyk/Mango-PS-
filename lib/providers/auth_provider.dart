@@ -17,19 +17,23 @@ class AuthProvider extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
+    // تنظيف الباسورد المدخل من أي مسافات زائدة في البداية أو النهاية
+    final cleanInput = password.trim();
+
     try {
+      // تجربة جلب البيانات الحديثة مباشرة من السيرفر أولاً
       final docSnap = await FirebaseFirestore.instance
           .collection('settings')
           .doc('auth')
-          .get(const GetOptions(source: Source.serverAndCache));
+          .get(const GetOptions(source: Source.server));
 
       final targetField = role == UserRole.admin ? 'admin_pass' : 'staff_pass';
 
       if (docSnap.exists && docSnap.data() != null) {
         final data = docSnap.data()!;
-        final correctPass = data[targetField]?.toString();
+        final correctPass = data[targetField]?.toString().trim();
 
-        if (correctPass != null && correctPass == password) {
+        if (correctPass != null && correctPass == cleanInput) {
           _isLoggedIn = true;
           _currentRole = role;
           _isLoading = false;
@@ -37,17 +41,18 @@ class AuthProvider extends ChangeNotifier {
           return true;
         }
       }
-
-      final defaultPass = role == UserRole.admin ? '123456' : '112233';
-      if (password == defaultPass) {
-        _isLoggedIn = true;
-        _currentRole = role;
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
     } catch (e) {
-      debugPrint("Firestore Auth Error: $e");
+      debugPrint("Firestore Auth Server Fetch Error: $e");
+    }
+
+    // fallback: فحص الباسوردات الافتراضية
+    final defaultPass = role == UserRole.admin ? '123456' : '112233';
+    if (cleanInput == defaultPass) {
+      _isLoggedIn = true;
+      _currentRole = role;
+      _isLoading = false;
+      notifyListeners();
+      return true;
     }
 
     _isLoading = false;
