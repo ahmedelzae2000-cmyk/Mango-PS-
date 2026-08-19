@@ -15,21 +15,14 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   @override
-  void initState() {
-    super.initState();
-    Future.microtask(() {
-      Provider.of<DeviceProvider>(context, listen: false).loadDevices();
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final deviceProvider = Provider.of<DeviceProvider>(context);
+    final bool isAdmin = (authProvider.role == UserRole.admin);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manga PS'),
+        title: const Text('Manga PS - شاشة الأجهزة'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
@@ -53,19 +46,24 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             UserAccountsDrawerHeader(
               accountName: Text(
-                authProvider.role == UserRole.admin ? 'صاحب المحل' : 'موظف',
+                isAdmin ? 'صاحب المحل (Admin)' : 'الموظف (Staff)',
                 style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              accountEmail: const Text('Manga PS System'),
+              accountEmail: const Text('نظام إدارة صالة الألعاب'),
               currentAccountPicture: const CircleAvatar(
                 backgroundColor: Colors.white,
-                child: Icon(Icons.sports_esports, color: Color(0xFF1E88E5), size: 36),
+                child: Icon(Icons.sports_esports, color: Colors.blue, size: 36),
               ),
             ),
-            if (authProvider.role == UserRole.admin)
+            ListTile(
+              leading: const Icon(Icons.tv),
+              title: const Text('شاشة الأجهزة الرئيسية'),
+              onTap: () => Navigator.pop(context),
+            ),
+            if (isAdmin)
               ListTile(
-                leading: const Icon(Icons.settings),
-                title: const Text('تعديل الأسعار وإضافة أجهزة'),
+                leading: const Icon(Icons.add_to_photos),
+                title: const Text('إدارة وإضافة الأجهزة والأسعار'),
                 onTap: () {
                   Navigator.pop(context);
                   Navigator.push(
@@ -84,12 +82,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   const Icon(Icons.devices, size: 80, color: Colors.grey),
                   const SizedBox(height: 16),
-                  const Text(
-                    'لا يوجد أجهزة مضافة حتى الآن',
-                    style: TextStyle(fontSize: 18, color: Colors.white70),
-                  ),
+                  const Text('لا يوجد أجهزة مضافة حتى الآن'),
                   const SizedBox(height: 16),
-                  if (authProvider.role == UserRole.admin)
+                  if (isAdmin)
                     ElevatedButton(
                       onPressed: () {
                         Navigator.push(
@@ -97,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           MaterialPageRoute(builder: (_) => const PricingScreen()),
                         );
                       },
-                      child: const Text('إضافة أجهزة جديدة'),
+                      child: const Text('إضافة جهاز جديد الآن'),
                     ),
                 ],
               ),
@@ -106,7 +101,7 @@ class _HomeScreenState extends State<HomeScreen> {
               padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.8,
+                childAspectRatio: 0.85,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
@@ -114,13 +109,9 @@ class _HomeScreenState extends State<HomeScreen> {
               itemBuilder: (context, index) {
                 final device = deviceProvider.devices[index];
                 return Card(
-                  color: device.isOccupied ? const Color(0xFF2C1E1E) : const Color(0xFF1E2C1E),
+                  elevation: 4,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                      color: device.isOccupied ? Colors.red : Colors.green,
-                      width: 1.5,
-                    ),
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -129,39 +120,34 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           device.name,
-                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        Text(
-                          'النوع: ${device.type}',
-                          style: const TextStyle(color: Colors.white70),
-                        ),
-                        Text(
-                          device.isOccupied ? 'مشغول' : 'متاح',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
+                        Text('النوع: ${device.type}'),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: device.isOccupied ? Colors.red.shade100 : Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            device.isOccupied ? 'مشغول' : 'متاح',
+                            style: TextStyle(
+                              color: device.isOccupied ? Colors.red.shade900 : Colors.green.shade900,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             onPressed: () {
-                              if (device.isOccupied) {
-                                deviceProvider.endSession(device);
-                              } else {
-                                deviceProvider.startSession(
-                                  device.id,
-                                  GameMode.single,
-                                  PaymentMethod.cash,
-                                );
-                              }
+                              deviceProvider.toggleDeviceState(device);
                             },
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: device.isOccupied ? Colors.red.shade700 : Colors.blue.shade700,
+                              backgroundColor: device.isOccupied ? Colors.red : Colors.green,
                             ),
                             child: Text(
-                              device.isOccupied ? 'إنهاء' : 'بدء',
+                              device.isOccupied ? 'إنهاء الجلسة' : 'بدء الجلسة',
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),
