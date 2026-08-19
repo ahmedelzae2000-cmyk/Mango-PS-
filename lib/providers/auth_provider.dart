@@ -12,7 +12,6 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // 1. القراءة مباشرة من مجموعة settings ومستند auth
       final docSnap = await FirebaseFirestore.instance
           .collection('settings')
           .doc('auth')
@@ -31,7 +30,6 @@ class AuthProvider extends ChangeNotifier {
         }
       }
 
-      // 2. فحص احتياطي للباسوردات الافتراضية
       final defaultPass = role == UserRole.admin ? '123456' : '112233';
       if (password == defaultPass) {
         _isLoading = false;
