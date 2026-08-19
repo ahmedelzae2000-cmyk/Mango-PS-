@@ -16,7 +16,6 @@ class DeviceProvider extends ChangeNotifier {
     }
   }
 
-  // إضافة دالة addDevice بالوسائط التي تتوقعها الشاشات
   Future<void> addDevice(String name, String type, {double singleRate = 20.0, double multiRate = 30.0}) async {
     try {
       final docRef = await FirebaseFirestore.instance.collection('devices').add({
@@ -39,6 +38,7 @@ class DeviceProvider extends ChangeNotifier {
       ));
 
       notifyListeners();
+      await loadDevices();
     } catch (e) {
       debugPrint("Error adding device: $e");
     }
@@ -47,9 +47,11 @@ class DeviceProvider extends ChangeNotifier {
   double calculateCurrentCost(DeviceModel device) {
     if (!device.isOccupied || device.startTime == null) return 0.0;
     final now = DateTime.now();
-    final durationInHours = now.difference(device.startTime!).inSeconds / 3600.0;
+    final durationInMinutes = now.difference(device.startTime!).inMinutes;
     final rate = device.mode == GameMode.single ? device.singleRate : device.multiRate;
-    return durationInHours * rate;
+    
+    final cost = (durationInMinutes / 60.0) * rate;
+    return cost < 0 ? 0.0 : cost;
   }
 
   Future<void> startSession(String deviceId, GameMode mode, PaymentMethod payment) async {
@@ -63,12 +65,16 @@ class DeviceProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      await FirebaseFirestore.instance.collection('devices').doc(deviceId).update({
-        'isOccupied': true,
-        'mode': mode == GameMode.single ? 'single' : 'multi',
-        'paymentMethod': payment.name,
-        'startTime': Timestamp.fromDate(now),
-      });
+      try {
+        await FirebaseFirestore.instance.collection('devices').doc(deviceId).update({
+          'isOccupied': true,
+          'mode': mode == GameMode.single ? 'single' : 'multi',
+          'paymentMethod': payment == PaymentMethod.cash ? 'cash' : 'vodafone',
+          'startTime': Timestamp.fromDate(now),
+        });
+      } catch (e) {
+        debugPrint("Firestore start error: $e");
+      }
     }
   }
 
@@ -80,15 +86,19 @@ class DeviceProvider extends ChangeNotifier {
 
       notifyListeners();
 
-      await FirebaseFirestore.instance.collection('devices').doc(device.id).update({
-        'isOccupied': false,
-        'startTime': null,
-      });
+      try {
+        await FirebaseFirestore.instance.collection('devices').doc(device.id).update({
+          'isOccupied': false,
+          'startTime': null,
+        });
+      } catch (e) {
+        debugPrint("Firestore end error: $e");
+      }
     }
   }
 
   Future<void> updateCustomAmount(String deviceId, double amount) async {
-    // إمكانية حفظ أو تسجيل الحساب المخصص
+    notifyListeners();
   }
 }
  
