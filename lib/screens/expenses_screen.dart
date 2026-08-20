@@ -22,13 +22,19 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(labelText: 'بيان المصروف (مثال: صيانة/كهرباء)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'بيان المصروف (مثال: صيانة/كهرباء)',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'المبلغ (ج.م)', border: OutlineInputBorder()),
+              decoration: const InputDecoration(
+                labelText: 'المبلغ (ج.م)',
+                border: OutlineInputBorder(),
+              ),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -60,7 +66,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     child: ListTile(
                       leading: const Icon(Icons.money_off, color: Colors.red),
                       title: Text(_expenses[index]['title']),
-                      trailing: Text('${_expenses[index]['amount']} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      trailing: Text(
+                        '${_expenses[index]['amount']} ج.م',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                      ),
                     ),
                   );
                 },
