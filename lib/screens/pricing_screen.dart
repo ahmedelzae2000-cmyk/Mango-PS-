@@ -18,55 +18,45 @@ class _PricingScreenState extends State<PricingScreen> {
     final deviceProvider = Provider.of<DeviceProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('إدارة الأجهزة والأسعار'),
-      ),
+      appBar: AppBar(title: const Text('إدارة الأجهزة')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'إضافة جهاز جديد',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+            const Text('إضافة جهاز جديد', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
             TextField(
               controller: _nameController,
               decoration: const InputDecoration(
-                labelText: 'اسم الجهاز (مثال: جهاز 3)',
+                labelText: 'اسم الجهاز (مثل: جهاز 1)',
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 10),
             DropdownButtonFormField<String>(
               value: _selectedType,
               items: const [
                 DropdownMenuItem(value: 'PS5', child: Text('PlayStation 5')),
                 DropdownMenuItem(value: 'PS4', child: Text('PlayStation 4')),
-                DropdownMenuItem(value: 'VR', child: Text('VR Headset')),
+                DropdownMenuItem(value: 'VR', child: Text('VR')),
               ],
-              onChanged: (value) {
-                if (value != null) setState(() => _selectedType = value);
-              },
+              onChanged: (val) => setState(() => _selectedType = val!),
               decoration: const InputDecoration(
                 labelText: 'نوع الجهاز',
                 border: OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             SizedBox(
               width: double.infinity,
-              height: 48,
+              height: 45,
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.add),
-                label: const Text('حفظ وإضافة الجهاز'),
+                label: const Text('حفظ الجهاز'),
                 onPressed: () {
                   if (_nameController.text.trim().isNotEmpty) {
-                    deviceProvider.addDevice(
-                      _nameController.text.trim(),
-                      _selectedType,
-                    );
+                    deviceProvider.addDevice(_nameController.text.trim(), _selectedType);
                     _nameController.clear();
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(content: Text('تمت إضافة الجهاز بنجاح!')),
@@ -75,22 +65,19 @@ class _PricingScreenState extends State<PricingScreen> {
                 },
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'الأجهزة الحالية',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 20),
+            const Text('الأجهزة المضافة', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 10),
             Expanded(
               child: ListView.builder(
                 itemCount: deviceProvider.devices.length,
                 itemBuilder: (context, index) {
-                  final device = deviceProvider.devices[index];
+                  final dev = deviceProvider.devices[index];
                   return Card(
                     child: ListTile(
-                      leading: const Icon(Icons.sports_esports),
-                      title: Text(device.name),
-                      subtitle: Text('النوع: ${device.type}'),
+                      leading: const Icon(Icons.tv),
+                      title: Text(dev.name),
+                      subtitle: Text('النوع: ${dev.type}'),
                     ),
                   );
                 },
