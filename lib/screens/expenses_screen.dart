@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -8,9 +9,20 @@ class ExpensesScreen extends StatefulWidget {
 }
 
 class _ExpensesScreenState extends State<ExpensesScreen> {
-  final List<Map<String, dynamic>> _expenses = [];
   final _titleController = TextEditingController();
   final _amountController = TextEditingController();
+
+  Future<void> _addExpense() async {
+    if (_titleController.text.isNotEmpty && _amountController.text.isNotEmpty) {
+      await FirebaseFirestore.instance.collection('expenses').add({
+        'title': _titleController.text.trim(),
+        'amount': double.tryParse(_amountController.text) ?? 0.0,
+        'date': FieldValue.serverTimestamp(),
+      });
+      _titleController.clear();
+      _amountController.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -22,19 +34,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
           children: [
             TextField(
               controller: _titleController,
-              decoration: const InputDecoration(
-                labelText: 'بيان المصروف (مثال: صيانة/كهرباء)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'بيان المصروف', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             TextField(
               controller: _amountController,
               keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'المبلغ (ج.م)',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'المبلغ (ج.م)', border: OutlineInputBorder()),
             ),
             const SizedBox(height: 10),
             SizedBox(
@@ -43,34 +49,28 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               child: ElevatedButton.icon(
                 icon: const Icon(Icons.add),
                 label: const Text('تسجيل المصروف'),
-                onPressed: () {
-                  if (_titleController.text.isNotEmpty && _amountController.text.isNotEmpty) {
-                    setState(() {
-                      _expenses.add({
-                        'title': _titleController.text,
-                        'amount': _amountController.text,
-                      });
-                    });
-                    _titleController.clear();
-                    _amountController.clear();
-                  }
-                },
+                onPressed: _addExpense,
               ),
             ),
             const SizedBox(height: 20),
             Expanded(
-              child: ListView.builder(
-                itemCount: _expenses.length,
-                itemBuilder: (context, index) {
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.money_off, color: Colors.red),
-                      title: Text(_expenses[index]['title']),
-                      trailing: Text(
-                        '${_expenses[index]['amount']} ج.م',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                      ),
-                    ),
+              child: StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance.collection('expenses').orderBy('date', descending: true).snapshots(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+                  final docs = snapshot.data!.docs;
+                  return ListView.builder(
+                    itemCount: docs.length,
+                    itemBuilder: (context, index) {
+                      final data = docs[index].data() as Map<String, dynamic>;
+                      return Card(
+                        child: ListTile(
+                          leading: const Icon(Icons.money_off, color: Colors.red),
+                          title: Text(data['title'] ?? ''),
+                          trailing: Text('${data['amount']} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      );
+                    },
                   );
                 },
               ),
