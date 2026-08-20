@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'expense_screen.dart';
+import 'expenses_screen.dart';
 import 'shift_screen.dart';
 import 'reports_screen.dart';
 
