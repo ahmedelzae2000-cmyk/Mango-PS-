@@ -1,44 +1,70 @@
 import 'package:flutter/material.dart';
-import '../models/device_model.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+class DeviceModel {
+  String id;
+  String name;
+  String type;
+  bool isOccupied;
+
+  DeviceModel({
+    required this.id,
+    required this.name,
+    required this.type,
+    this.isOccupied = false,
+  });
+
+  factory DeviceModel.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return DeviceModel(
+      id: doc.id,
+      name: data['name'] ?? '',
+      type: data['type'] ?? '',
+      isOccupied: data['isOccupied'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'type': type,
+      'isOccupied': isOccupied,
+    };
+  }
+}
 
 class DeviceProvider extends ChangeNotifier {
-  final List<Device> _devices = [
-    Device(id: '1', name: 'جهاز 1 (PS5)', type: 'PS5', isOccupied: false),
-    Device(id: '2', name: 'جهاز 2 (PS4)', type: 'PS4', isOccupied: false),
-  ];
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  List<DeviceModel> _devices = [];
 
-  List<Device> get devices => _devices;
+  List<DeviceModel> get devices => _devices;
 
-  void loadDevices() {
-    notifyListeners();
+  DeviceProvider() {
+    fetchDevices();
   }
 
-  void addDevice(String name, String type) {
-    final newDevice = Device(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      name: name,
-      type: type,
-      isOccupied: false,
-    );
-    _devices.add(newDevice);
-    notifyListeners();
-  }
-
-  void toggleDeviceState(Device device) {
-    device.isOccupied = !device.isOccupied;
-    notifyListeners();
-  }
-
-  void startSession(String deviceId, GameMode mode, PaymentMethod payment) {
-    final index = _devices.indexWhere((d) => d.id == deviceId);
-    if (index != -1) {
-      _devices[index].isOccupied = true;
+  // جلب الأجهزة لحظياً من Firestore
+  void fetchDevices() {
+    _db.collection('devices').snapshots().listen((snapshot) {
+      _devices = snapshot.docs.map((doc) => DeviceModel.fromFirestore(doc)).toList();
       notifyListeners();
-    }
+    });
   }
 
-  void endSession(Device device) {
-    device.isOccupied = false;
-    notifyListeners();
+  // إضافة جهاز جديد
+  Future<void> addDevice(String name, String type) async {
+    await _db.collection('devices').add({
+      'name': name,
+      'type': type,
+      'isOccupied': false,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // تغيير حالة الجهاز (تشغيل / إنهاء)
+  Future<void> toggleDeviceState(DeviceModel device) async {
+    await _db.collection('devices').doc(device.id).update({
+      'isOccupied': !device.isOccupied,
+    });
   }
 }
