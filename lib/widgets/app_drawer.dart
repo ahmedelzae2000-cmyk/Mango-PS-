@@ -63,7 +63,7 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.pricetags_sharp),
+            leading: const Icon(Icons.sell),
             title: const Text('تعديل الأسعار والأجهزة'),
             onTap: () {
               Navigator.pushReplacement(
