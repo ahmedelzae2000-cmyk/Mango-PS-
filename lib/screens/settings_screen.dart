@@ -20,9 +20,9 @@ class SettingsScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAlignment: CrossAlignment.start,
+          crossAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. قسم بيانات المستحدم الحالي
+            // 1. قسم بيانات المستخدم الحالي
             Card(
               color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
               elevation: 3,
@@ -68,33 +68,6 @@ class SettingsScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 15),
-
-            // 3. اختيار اللون الرئيسي للتطبيق
-            Card(
-              color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAlignment: CrossAlignment.start,
-                children: [
-                  const Text('اللون الرئيسي للتطبيق', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(height: 8),
-                  const Text('اختر اللون المفضل للأزرار والشريط العلوي:', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                  const SizedBox(height: 15),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildColorOption(context, Colors.blue, 'أزرق', appProvider),
-                      _buildColorOption(context, Colors.deepPurple, 'بنفسجي', appProvider),
-                      _buildColorOption(context, Colors.teal, 'تايل', appProvider),
-                      _buildColorOption(context, Colors.orange, 'برتقالي', appProvider),
-                      _buildColorOption(context, Colors.redAccent, 'أحمر', appProvider),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
             const SizedBox(height: 25),
             const Text('ℹ️ عن التطبيق', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
@@ -119,24 +92,6 @@ class SettingsScreen extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildColorOption(BuildContext context, Color color, String name, AppProvider provider) {
-    final isSelected = provider.primaryColor == color;
-    return GestureDetector(
-      onTap: () => provider.setPrimaryColor(color),
-      child: Column(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: color,
-            child: isSelected ? const Icon(Icons.check, color: Colors.white) : null,
-          ),
-          const SizedBox(height: 6),
-          Text(name, style: const TextStyle(fontSize: 12)),
-        ],
       ),
     );
   }
