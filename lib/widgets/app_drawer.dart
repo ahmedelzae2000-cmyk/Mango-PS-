@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 
 class AppDrawer extends StatelessWidget {
-  final Function(int) onSelectScreen;
+  final Function(int)? onSelectScreen;
   final int currentScreenIndex;
 
   const AppDrawer({
     super.key,
-    required onSelectScreen,
-    required this.currentScreenIndex,
-  }) : onSelectScreen = onSelectScreen;
+    this.onSelectScreen,
+    this.currentScreenIndex = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -30,13 +30,13 @@ class AppDrawer extends StatelessWidget {
               ),
               decoration: BoxDecoration(color: Colors.deepPurple),
             ),
-            _buildItem(context, 0, Icons.sports_esports, '1. الرئيسية (الأجهزة)'),
-            _buildItem(context, 1, Icons.timer, '2. إدارة الورديات'),
-            _buildItem(context, 2, Icons.money_off, '3. المصاريف والسلف'),
-            _buildItem(context, 3, Icons.restaurant_menu, '4. بوفيه والمشروبات'),
-            _buildItem(context, 4, Icons.sell, '5. تعديل الأسعار والأجهزة'),
-            _buildItem(context, 5, Icons.bar_chart, '6. التقارير المالية'),
-            _buildItem(context, 6, Icons.settings, '7. الإعدادات'),
+            _buildItem(context, 0, Icons.sports_esports, '1. الرئيسية (الأجهزة)', '/home'),
+            _buildItem(context, 1, Icons.timer, '2. إدارة الورديات', '/shift'),
+            _buildItem(context, 2, Icons.money_off, '3. المصاريف والسلف', '/expenses'),
+            _buildItem(context, 3, Icons.restaurant_menu, '4. بوفيه والمشروبات', '/buffet'),
+            _buildItem(context, 4, Icons.sell, '5. تعديل الأسعار والأجهزة', '/pricing'),
+            _buildItem(context, 5, Icons.bar_chart, '6. التقارير المالية', '/reports'),
+            _buildItem(context, 6, Icons.settings, '7. الإعدادات', '/settings'),
             const Divider(color: Colors.grey),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.redAccent),
@@ -52,7 +52,7 @@ class AppDrawer extends StatelessWidget {
     );
   }
 
-  Widget _buildItem(BuildContext context, int index, IconData icon, String title) {
+  Widget _buildItem(BuildContext context, int index, IconData icon, String title, String routeName) {
     final isSelected = currentScreenIndex == index;
     return ListTile(
       selected: isSelected,
@@ -66,8 +66,15 @@ class AppDrawer extends StatelessWidget {
         ),
       ),
       onTap: () {
-        Navigator.pop(context); // إغلاق Drawer
-        onSelectScreen(index); // تبديل الشاشة
+        Navigator.pop(context); // إغلاق القائمة
+        if (onSelectScreen != null) {
+          onSelectScreen!(index);
+        } else {
+          // في حال تم استدعاؤه من شاشة فردية بدون MainLayout
+          if (ModalRoute.of(context)?.settings.name != routeName) {
+            Navigator.pushReplacementNamed(context, routeName);
+          }
+        }
       },
     );
   }
