@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../screens/home_screen.dart';
-import '../screens/expenses_screen.dart'; // تم تعديل الاسم بحرف s
+import '../screens/expenses_screen.dart';
 import '../screens/pricing_screen.dart';
 import '../screens/reports_screen.dart';
 import '../screens/shift_screen.dart';
@@ -15,15 +15,19 @@ class AppDrawer extends StatelessWidget {
     final appProvider = Provider.of<AppProvider>(context);
 
     return Drawer(
+      backgroundColor: const Color(0xFF1E1E1E), // خلفية داكنة للقائمة الجانبية
       child: ListView(
         padding: EdgeInsets.zero,
         children: [
           UserAccountsDrawerHeader(
             accountName: Text(
               appProvider.userName.isNotEmpty ? appProvider.userName : 'المستخدم',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white),
             ),
-            accountEmail: Text('الصلاحية: ${appProvider.userRole}'),
+            accountEmail: Text(
+              'الصلاحية: ${appProvider.userRole}',
+              style: const TextStyle(color: Colors.white70),
+            ),
             currentAccountPicture: const CircleAvatar(
               backgroundColor: Colors.white,
               child: Icon(Icons.sports_esports, size: 40, color: Colors.black87),
@@ -33,8 +37,8 @@ class AppDrawer extends StatelessWidget {
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.dashboard),
-            title: const Text('الرئيسية (الأجهزة)'),
+            leading: const Icon(Icons.dashboard, color: Colors.white),
+            title: const Text('الرئيسية (الأجهزة)', style: TextStyle(color: Colors.white)),
             onTap: () {
               Navigator.pushReplacement(
                 context,
@@ -43,8 +47,8 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.timer),
-            title: const Text('إدارة الورديات'),
+            leading: const Icon(Icons.timer, color: Colors.white),
+            title: const Text('إدارة الورديات', style: TextStyle(color: Colors.white)),
             onTap: () {
               Navigator.pushReplacement(
                 context,
@@ -53,18 +57,18 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.money_off),
-            title: const Text('المصاريف والسلف'),
+            leading: const Icon(Icons.money_off, color: Colors.white),
+            title: const Text('المصاريف والسلف', style: TextStyle(color: Colors.white)),
             onTap: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const ExpensesScreen()), // تم تعديل الـ Class Name أيضاً إذا كان باسم ExpensesScreen
+                MaterialPageRoute(builder: (context) => const ExpensesScreen()),
               );
             },
           ),
           ListTile(
-            leading: const Icon(Icons.sell),
-            title: const Text('تعديل الأسعار والأجهزة'),
+            leading: const Icon(Icons.sell, color: Colors.white),
+            title: const Text('تعديل الأسعار والأجهزة', style: TextStyle(color: Colors.white)),
             onTap: () {
               Navigator.pushReplacement(
                 context,
@@ -73,8 +77,8 @@ class AppDrawer extends StatelessWidget {
             },
           ),
           ListTile(
-            leading: const Icon(Icons.bar_chart),
-            title: const Text('التقارير المالية'),
+            leading: const Icon(Icons.bar_chart, color: Colors.white),
+            title: const Text('التقارير المالية', style: TextStyle(color: Colors.white)),
             onTap: () {
               Navigator.pushReplacement(
                 context,
@@ -82,10 +86,10 @@ class AppDrawer extends StatelessWidget {
               );
             },
           ),
-          const Divider(),
+          const Divider(color: Colors.grey),
           ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red)),
+            leading: const Icon(Icons.logout, color: Colors.redAccent),
+            title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.redAccent)),
             onTap: () {
               Navigator.pushReplacementNamed(context, '/login');
             },
