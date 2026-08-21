@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// موديل الجهاز
 class DeviceModel {
   String id;
   String name;
-  String type;
+  String type; // PS4, PS5
   bool isOccupied;
-  String mode;
+  String mode; // single, multi
   Timestamp? startTime;
   double singlePrice;
   double multiPrice;
@@ -25,24 +24,28 @@ class DeviceModel {
   });
 }
 
-// البروفايدر
 class DeviceProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   List<DeviceModel> _devices = [];
 
   // إعدادات التطبيق
-  String _appMode = 'فاتح (Light)';
-  String _backgroundType = 'افتراضي (Purple)';
+  String _appMode = 'فاتح';
+  String _backgroundType = 'افتراضي (بنفسجي)';
   String? _customImagePath;
 
   String get appMode => _appMode;
   String get backgroundType => _backgroundType;
   String? get customImagePath => _customImagePath;
+  ThemeMode get themeMode => _appMode == 'داكن' ? ThemeMode.dark : ThemeMode.light;
 
   List<DeviceModel> get devices => _devices;
 
   DeviceProvider() {
     _loadSettings();
+    _initDeviceListener();
+  }
+
+  void _initDeviceListener() {
     _db.collection('devices').snapshots().listen((snapshot) {
       _devices = snapshot.docs.map((doc) {
         var data = doc.data();
@@ -61,16 +64,16 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // تحميل الإعدادات المحفوظة
+  // --- إدارة الإعدادات ---
+
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
-    _appMode = prefs.getString('app_mode') ?? 'فاتح (Light)';
-    _backgroundType = prefs.getString('app_bg') ?? 'افتراضي (Purple)';
+    _appMode = prefs.getString('app_mode') ?? 'فاتح';
+    _backgroundType = prefs.getString('app_bg') ?? 'افتراضي (بنفسجي)';
     _customImagePath = prefs.getString('custom_image_path');
     notifyListeners();
   }
 
-  // تحديث وحفظ الإعدادات
   Future<void> updateSettings(String mode, String bgType, {String? imagePath}) async {
     _appMode = mode;
     _backgroundType = bgType;
@@ -87,6 +90,8 @@ class DeviceProvider extends ChangeNotifier {
     
     notifyListeners();
   }
+
+  // --- دوال الأجهزة ---
 
   Future<void> addDevice(String name, String type, double singlePrice, double multiPrice) async {
     await _db.collection('devices').add({
@@ -116,6 +121,7 @@ class DeviceProvider extends ChangeNotifier {
   Future<void> stopSession(String deviceId, String deviceName, String paymentMethod, double finalCost) async {
     final batch = _db.batch();
 
+    // 1. تحديث حالة الجهاز
     final deviceRef = _db.collection('devices').doc(deviceId);
     batch.update(deviceRef, {
       'isOccupied': false,
@@ -123,7 +129,7 @@ class DeviceProvider extends ChangeNotifier {
       'mode': 'single',
     });
 
-    // تحديث الوردية النشطة
+    // 2. البحث عن الوردية النشطة
     final activeShiftQuery = await _db.collection('shifts')
         .where('isActive', isEqualTo: true)
         .limit(1)
@@ -131,9 +137,8 @@ class DeviceProvider extends ChangeNotifier {
     
     if (activeShiftQuery.docs.isNotEmpty) {
       final shiftDoc = activeShiftQuery.docs.first;
-      final shiftRef = shiftDoc.reference;
-      
       final data = shiftDoc.data();
+      
       double currentTotal = (data['totalRevenue'] ?? 0.0).toDouble();
       double currentCash = (data['cashRevenue'] ?? 0.0).toDouble();
       double currentVisa = (data['visaRevenue'] ?? 0.0).toDouble();
@@ -145,23 +150,28 @@ class DeviceProvider extends ChangeNotifier {
         currentVisa += finalCost;
       }
 
-      batch.update(shiftRef, {
+      batch.update(shiftDoc.reference, {
         'totalRevenue': currentTotal,
         'cashRevenue': currentCash,
         'visaRevenue': currentVisa,
       });
     }
 
-    await batch.commit();
-
-    // حفظ تفاصيل الجلسة في سجل الورديات (History)
-    await _db.collection('history').add({
+    // 3. إضافة الجلسة إلى السجل
+    final historyRef = _db.collection('history').doc();
+    batch.set(historyRef, {
       'deviceName': deviceName,
       'cost': finalCost,
       'paymentMethod': paymentMethod,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
+    await batch.commit();
     notifyListeners();
+  }
+  
+  // دالة لحذف الجهاز
+  Future<void> deleteDevice(String deviceId) async {
+    await _db.collection('devices').doc(deviceId).delete();
   }
 }
