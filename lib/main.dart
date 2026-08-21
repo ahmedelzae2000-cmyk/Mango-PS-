@@ -16,7 +16,6 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      // تهيئة الفايربيس بنفس الخيارات المضمونة
       future: Firebase.initializeApp(
         options: const FirebaseOptions(
           apiKey: "AIzaSyB5UujdLmnqFvmujV3FSwSH2iI0L-78jk4",
@@ -27,31 +26,15 @@ class MyApp extends StatelessWidget {
         ),
       ),
       builder: (context, snapshot) {
-        // شاشة تحميل بسيطة أثناء الاتصال بالفايربيس
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const MaterialApp(
             debugShowCheckedModeBanner: false,
             home: Scaffold(
-              body: Center(
-                child: CircularProgressIndicator(),
-              ),
+              body: Center(child: CircularProgressIndicator()),
             ),
           );
         }
 
-        // في حالة وجود خطأ
-        if (snapshot.hasError) {
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            home: Scaffold(
-              body: Center(
-                child: Text('خطأ في الاتصال: ${snapshot.error}'),
-              ),
-            ),
-          );
-        }
-
-        // بعد النجاح: تشغيل التطبيق بالـ Providers والواجهة الرئيسية
         return MultiProvider(
           providers: [
             ChangeNotifierProvider(create: (_) => DeviceProvider()),
@@ -64,14 +47,28 @@ class MyApp extends StatelessWidget {
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
-            supportedLocales: const [
-              Locale('ar', ''),
-            ],
+            supportedLocales: const [Locale('ar', '')],
             locale: const Locale('ar', ''),
             theme: ThemeData(
               primarySwatch: Colors.blue,
               useMaterial3: true,
             ),
+            // تطبيق الخلفية الموحدة على كافة شاشات البرنامج
+            builder: (context, child) {
+              return Container(
+                decoration: const BoxDecoration(
+                  image: DecorationImage(
+                    image: AssetImage('assets/bg.jpg'),
+                    fit: BoxFit.cover,
+                    opacity: 0.25, // نسبة الشفافية لضمان وضوح النصوص
+                  ),
+                ),
+                child: Scaffold(
+                  backgroundColor: Colors.transparent, // جعل خلفية الـ Scaffold شفافة لتظهر الصورة
+                  body: child,
+                ),
+              );
+            },
             home: const HomeScreen(),
           ),
         );
