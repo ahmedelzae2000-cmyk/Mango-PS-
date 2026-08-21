@@ -3,7 +3,13 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'providers/device_provider.dart';
-import 'screens/main_layout.dart'; // تم إضافة استدعاء شاشة التنقل الموحدة
+import 'screens/main_layout.dart';
+import 'screens/home_screen.dart';
+import 'screens/shift_screen.dart';
+import 'screens/expenses_screen.dart';
+import 'screens/pricing_screen.dart';
+import 'screens/reports_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,7 +46,7 @@ class MyApp extends StatelessWidget {
             ChangeNotifierProvider(create: (_) => DeviceProvider()),
           ],
           child: MaterialApp(
-            title: 'Manga PS',
+            title: 'Mango PS',
             debugShowCheckedModeBanner: false,
             localizationsDelegates: const [
               GlobalMaterialLocalizations.delegate,
@@ -53,23 +59,16 @@ class MyApp extends StatelessWidget {
               primarySwatch: Colors.blue,
               useMaterial3: true,
             ),
-            // تطبيق الخلفية الموحدة على كافة شاشات البرنامج
-            builder: (context, child) {
-              return Container(
-                decoration: const BoxDecoration(
-                  image: DecorationImage(
-                    image: AssetImage('assets/bg.jpg'),
-                    fit: BoxFit.cover,
-                    opacity: 0.25, // نسبة الشفافية لضمان وضوح النصوص
-                  ),
-                ),
-                child: Scaffold(
-                  backgroundColor: Colors.transparent, // جعل خلفية الـ Scaffold شفافة لتظهر الصورة
-                  body: child,
-                ),
-              );
+            home: const MainLayout(),
+            routes: {
+              '/home': (context) => const HomeScreen(),
+              '/shift': (context) => const ShiftScreen(),
+              '/expenses': (context) => const ExpensesScreen(),
+              '/buffet': (context) => const Scaffold(body: Center(child: Text('شاشة البوفيه'))),
+              '/pricing': (context) => const PricingScreen(),
+              '/reports': (context) => const ReportsScreen(),
+              '/settings': (context) => const SettingsScreen(),
             },
-            home: const MainLayout(), // تم استبدال HomeScreen بـ MainLayout هنا
           ),
         );
       },
