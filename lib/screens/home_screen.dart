@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -10,31 +11,11 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool isDarkMode = true;
-
-  // قائمة أجهزة افتراضية للتجربة
-  List<Map<String, dynamic>> devices = [
-    {
-      'id': '1',
-      'name': 'جهاز 1 - PS5',
-      'isOccupied': false,
-      'pricePerHour': 40.0,
-      'startTime': null,
-    },
-    {
-      'id': '2',
-      'name': 'جهاز 2 - PS4',
-      'isOccupied': false,
-      'pricePerHour': 30.0,
-      'startTime': null,
-    },
-  ];
-
   Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    // تحديث العداد كل ثانية لتحديث الوقت والتكلفة حياً
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) setState(() {});
     });
@@ -46,9 +27,9 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  // حساب وقت الجلسة بالدقائق والثواني
-  String _getDurationText(DateTime? startTime) {
-    if (startTime == null) return '00:00:00';
+  String _getDurationText(Timestamp? startTimestamp) {
+    if (startTimestamp == null) return '00:00:00';
+    final startTime = startTimestamp.toDate();
     final diff = DateTime.now().difference(startTime);
     final hours = diff.inHours.toString().padLeft(2, '0');
     final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
@@ -56,18 +37,76 @@ class _HomeScreenState extends State<HomeScreen> {
     return '$hours:$minutes:$seconds';
   }
 
-  // حساب التكلفة المبدئية بناءً على الوقت المنقضي
-  double _calculateCost(DateTime? startTime, double pricePerHour) {
-    if (startTime == null) return 0.0;
-    final minutes = DateTime.now().difference(startTime).inMinutes;
+  double _calculateCost(Timestamp? startTimestamp, double pricePerHour) {
+    if (startTimestamp == null) return 0.0;
+    final minutes = DateTime.now().difference(startTimestamp.toDate()).inMinutes;
     return (minutes / 60.0) * pricePerHour;
   }
 
-  // نافذة إنهاء الجلسة (تعديل السعر + اختيار طريقة الدفع)
-  void _showEndSessionDialog(Map<String, dynamic> device) {
-    final startTime = device['startTime'] as DateTime?;
-    final double initialCost = _calculateCost(startTime, device['pricePerHour']);
-    
+  // نافذة بدء الجلسة (اختيار سنجل / ملتي)
+  void _showStartSessionDialog(String docId, String deviceName, double singlePrice, double multiPrice) {
+    String selectedMode = 'sgl';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              title: Text('بدء جلسة: $deviceName', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text('اختر نوع الجلسة:'),
+                  RadioListTile<String>(
+                    title: Text('فردي (Single) - $singlePrice ج.م/ساعة'),
+                    value: 'sgl',
+                    groupValue: selectedMode,
+                    onChanged: (val) => setDialogState(() => selectedMode = val!),
+                  ),
+                  RadioListTile<String>(
+                    title: Text('زوجي (Multi) - $multiPrice ج.م/ساعة'),
+                    value: 'mlt',
+                    groupValue: selectedMode,
+                    onChanged: (val) => setDialogState(() => selectedMode = val!),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                  onPressed: () async {
+                    final currentPrice = selectedMode == 'sgl' ? singlePrice : multiPrice;
+                    await FirebaseFirestore.instance.collection('devices').doc(docId).update({
+                      'isOccupied': true,
+                      'startTime': FieldValue.serverTimestamp(),
+                      'sessionType': selectedMode == 'sgl' ? 'سنجل' : 'ملتي',
+                      'activePrice': currentPrice,
+                    });
+                    if (mounted) Navigator.pop(context);
+                  },
+                  child: const Text('بدء الجلسة', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // نافذة إنهاء الجلسة (تعديل السعر + تحديد طريقة الدفع)
+  void _showEndSessionDialog(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    final startTimestamp = data['startTime'] as Timestamp?;
+    final double activePrice = (data['activePrice'] ?? 0.0).toDouble();
+    final double initialCost = _calculateCost(startTimestamp, activePrice);
+
     final TextEditingController costController =
         TextEditingController(text: initialCost.toStringAsFixed(2));
     String paymentMethod = 'كاش';
@@ -79,19 +118,13 @@ class _HomeScreenState extends State<HomeScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              title: Text(
-                'إنهاء جلسة: ${device['name']}',
-                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-              ),
+              title: Text('إنهاء جلسة: ${data['name']}', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    'الوقت المستغرق: ${_getDurationText(startTime)}',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
+                  Text('النوع: ${data['sessionType'] ?? 'غير محدد'}'),
+                  Text('الوقت: ${_getDurationText(startTimestamp)}'),
                   const SizedBox(height: 15),
-                  // تعديل السعر قبل الإنهاء
                   TextField(
                     controller: costController,
                     keyboardType: TextInputType.number,
@@ -99,11 +132,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: const InputDecoration(
                       labelText: 'التكلفة النهائية (ج.م)',
                       border: OutlineInputBorder(),
-                      suffixText: 'ج.م',
                     ),
                   ),
                   const SizedBox(height: 15),
-                  // تحديد طريقة الدفع
                   DropdownButtonFormField<String>(
                     value: paymentMethod,
                     dropdownColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
@@ -112,12 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       labelText: 'طريقة الدفع',
                       border: OutlineInputBorder(),
                     ),
-                    items: ['كاش', 'فيزا'].map((method) {
-                      return DropdownMenuItem(
-                        value: method,
-                        child: Text(method),
-                      );
-                    }).toList(),
+                    items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                     onChanged: (val) {
                       if (val != null) setDialogState(() => paymentMethod = val);
                     },
@@ -131,21 +157,16 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                  onPressed: () {
-                    setState(() {
-                      device['isOccupied'] = false;
-                      device['startTime'] = null;
+                  onPressed: () async {
+                    await FirebaseFirestore.instance.collection('devices').doc(doc.id).update({
+                      'isOccupied': false,
+                      'startTime': null,
+                      'sessionType': null,
+                      'activePrice': 0.0,
                     });
-                    Navigator.pop(context);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'تم تحصيل ${costController.text} ج.م (${paymentMethod}) بنجاح!',
-                        ),
-                      ),
-                    );
+                    if (mounted) Navigator.pop(context);
                   },
-                  child: const Text('تأكيد وإغلاق', style: TextStyle(color: Colors.white)),
+                  child: const Text('إغلاق وحفظ', style: TextStyle(color: Colors.white)),
                 ),
               ],
             );
@@ -160,116 +181,110 @@ class _HomeScreenState extends State<HomeScreen> {
     return Theme(
       data: isDarkMode ? ThemeData.dark() : ThemeData.light(),
       child: Scaffold(
+        backgroundColor: Colors.transparent,
         appBar: AppBar(
-          title: const Text('Manga PS - الرئيسية'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          title: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/logo.jpg',
+                height: 35,
+                errorBuilder: (context, error, stackTrace) => const Icon(Icons.sports_esports),
+              ),
+              const SizedBox(width: 8),
+              const Text('Manga PS'),
+            ],
+          ),
           centerTitle: true,
           actions: [
-            // زر التبديل للوضع الداكن (Dark Mode)
             IconButton(
               icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
-              onPressed: () {
-                setState(() {
-                  isDarkMode = !isDarkMode;
-                });
-              },
+              onPressed: () => setState(() => isDarkMode = !isDarkMode),
             ),
           ],
         ),
-        // الخلفية المختارة المخصصة
-        body: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: isDarkMode
-                  ? [const Color(0xFF0F2027), const Color(0xFF203A43), const Color(0xFF2C5364)]
-                  : [const Color(0xFFE0EAFC), const Color(0xFFCFDEF3)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: GridView.builder(
-              itemCount: devices.length,
+        body: StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance.collection('devices').snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return const Center(
+                child: Text(
+                  'لا توجد أجهزة مضافة في قاعدة البيانات',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              );
+            }
+
+            final docs = snapshot.data!.docs;
+
+            return GridView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: docs.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.75,
+                childAspectRatio: 0.70,
                 crossAxisSpacing: 12,
                 mainAxisSpacing: 12,
               ),
               itemBuilder: (context, index) {
-                final dev = devices[index];
-                final isOccupied = dev['isOccupied'] as bool;
-                final startTime = dev['startTime'] as DateTime?;
-                final currentCost = _calculateCost(startTime, dev['pricePerHour']);
+                final doc = docs[index];
+                final data = doc.data() as Map<String, dynamic>;
+                final bool isOccupied = data['isOccupied'] ?? false;
+                final Timestamp? startTimestamp = data['startTime'] as Timestamp?;
+                final double activePrice = (data['activePrice'] ?? 0.0).toDouble();
+                final double singlePrice = (data['singlePrice'] ?? 30.0).toDouble();
+                final double multiPrice = (data['multiPrice'] ?? 40.0).toDouble();
+
+                final currentCost = _calculateCost(startTimestamp, activePrice);
 
                 return Card(
                   elevation: 6,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
                   color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          dev['name'],
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          data['name'] ?? 'جهاز',
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                         ),
-                        Divider(color: isDarkMode ? Colors.white24 : Colors.black12),
-                        // 1. إظهار وقت الجلسة والتكلفة حياً
+                        const Divider(),
                         if (isOccupied) ...[
-                          Column(
-                            children: [
-                              const Text('الوقت المنقضي', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(
-                                _getDurationText(startTime),
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.blueAccent,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-                              const Text('التكلفة الحالية', style: TextStyle(fontSize: 12, color: Colors.grey)),
-                              Text(
-                                '${currentCost.toStringAsFixed(2)} ج.م',
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green,
-                                ),
-                              ),
-                            ],
-                          )
+                          Text(
+                            'النوع: ${data['sessionType'] ?? 'سنجل'}',
+                            style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            _getDurationText(startTimestamp),
+                            style: const TextStyle(fontSize: 16, color: Colors.blueAccent, fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '${currentCost.toStringAsFixed(2)} ج.م',
+                            style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold),
+                          ),
                         ] else ...[
-                          const Icon(Icons.sports_esports, size: 50, color: Colors.grey),
-                          const Text('الجهاز متاح', style: TextStyle(color: Colors.grey)),
+                          const Icon(Icons.sports_esports, size: 45, color: Colors.grey),
+                          Text('سنجل: $singlePrice | ملتي: $multiPrice', style: const TextStyle(fontSize: 11)),
                         ],
-                        // أزرار التشغيل والإنهاء
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isOccupied ? Colors.red : Colors.green,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
                             ),
                             onPressed: () {
                               if (isOccupied) {
-                                // فتح نافذة الإنهاء والدفع
-                                _showEndSessionDialog(dev);
+                                _showEndSessionDialog(doc);
                               } else {
-                                // بدء الجلسة
-                                setState(() {
-                                  dev['isOccupied'] = true;
-                                  dev['startTime'] = DateTime.now();
-                                });
+                                _showStartSessionDialog(doc.id, data['name'] ?? '', singlePrice, multiPrice);
                               }
                             },
                             child: Text(
@@ -283,11 +298,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               },
-            ),
-          ),
+            );
+          },
         ),
       ),
     );
   }
 }
- 
