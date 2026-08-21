@@ -64,7 +64,6 @@ class MyApp extends StatelessWidget {
               '/home': (context) => const HomeScreen(),
               '/shift': (context) => const ShiftScreen(),
               '/expenses': (context) => const ExpensesScreen(),
-              '/buffet': (context) => const Scaffold(body: Center(child: Text('شاشة البوفيه'))),
               '/pricing': (context) => const PricingScreen(),
               '/reports': (context) => const ReportsScreen(),
               '/settings': (context) => const SettingsScreen(),
