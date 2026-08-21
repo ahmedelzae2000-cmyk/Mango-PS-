@@ -185,7 +185,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          crossAxisAlignment: CrossAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // كارت تقرير السلف الشهري
             StreamBuilder<QuerySnapshot>(
@@ -215,7 +215,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Column(
-                          crossAxisAlignment: CrossAlignment.start,
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
                               'تقرير السلف لشهر (${DateFormat('MM-yyyy').format(DateTime.now())})',
