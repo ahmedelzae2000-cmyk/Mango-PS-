@@ -6,24 +6,14 @@ import 'providers/device_provider.dart';
 import 'screens/home_screen.dart';
 
 void main() async {
-  // 1. تهيئة بيئة الفلاتر
   WidgetsFlutterBinding.ensureInitialized();
-
-  // 2. محاولة تشغيل الفايربيس مع حماية التطبيق من التجمد في حال فشل أو تأخر الاتصال
+  
   try {
-    await Firebase.initializeApp().timeout(
-      const Duration(seconds: 5),
-      onTimeout: () {
-        debugPrint("⚠️ تجاوز الوقت المحد للاتصال بـ Firebase، سيتم فتح التطبيق وتأجيل الاتصال.");
-        return Firebase.app();
-      },
-    );
-    debugPrint("✅ تم الاتصال بـ Firebase بنجاح!");
+    await Firebase.initializeApp();
   } catch (e) {
-    debugPrint("⚠️ تعذر الاتصال بـ Firebase: $e");
+    debugPrint("Firebase init error: $e");
   }
 
-  // 3. فتح الشاشة الرئيسية فوراً
   runApp(const MyApp());
 }
 
@@ -44,12 +34,28 @@ class MyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        supportedLocales: const [Locale('ar', '')],
+        supportedLocales: const [
+          Locale('ar', ''),
+        ],
         locale: const Locale('ar', ''),
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
-        ),
+        builder: (context, child) {
+          // حماية الشاشة من أخطاء الرسم الرمادية
+          ErrorWidget.builder = (FlutterErrorDetails details) {
+            return Scaffold(
+              body: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Text(
+                    'حدث خطأ في تحميل الصفحة:\n${details.exception}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: Colors.red, fontSize: 16),
+                  ),
+                ),
+              ),
+            );
+          };
+          return child!;
+        },
         home: const HomeScreen(),
       ),
     );
