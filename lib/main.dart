@@ -3,6 +3,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'providers/device_provider.dart';
 import 'screens/home_screen.dart';
+import 'screens/shift_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,11 +29,20 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => DeviceProvider()),
       ],
-      child: const MaterialApp(
+      child: MaterialApp(
+        title: 'Mango PS',
         debugShowCheckedModeBanner: false,
-        home: HomeScreen(), // البداية من شاشة الأجهزة
+        theme: ThemeData(
+          primarySwatch: Colors.deepPurple,
+          useMaterial3: true,
+        ),
+        home: const HomeScreen(), // البداية من شاشة الأجهزة
+        routes: {
+          '/home': (context) => const HomeScreen(),
+          '/shift': (context) => const ShiftScreen(),
+          '/settings': (context) => const SettingsScreen(),
+        },
       ),
     );
   }
 }
- 
