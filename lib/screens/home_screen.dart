@@ -17,7 +17,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // قائمة الشاشات (الأجهزة مع كل مميزاتها، الورديات، الإعدادات)
     final List<Widget> pages = [
       const DevicesPage(),
       const ShiftScreen(),
@@ -41,7 +40,6 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// صفحة الأجهزة بكل التعديلات والعدادات السابقة
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -89,31 +87,16 @@ class DevicesPage extends StatelessWidget {
               children: [
                 TextField(
                   controller: nameController,
-                  decoration: const InputDecoration(labelText: 'اسم الجهاز (مثلاً: جهاز 1)'),
+                  decoration: const InputDecoration(labelText: 'اسم الجهاز'),
                 ),
-                const SizedBox(height: 10),
                 DropdownButton<String>(
                   value: deviceType,
                   isExpanded: true,
-                  items: ['PS4', 'PS5'].map((type) {
-                    return DropdownMenuItem(value: type, child: Text(type));
-                  }).toList(),
-                  onChanged: (val) {
-                    if (val != null) setState(() => deviceType = val);
-                  },
+                  items: ['PS4', 'PS5'].map((type) => DropdownMenuItem(value: type, child: Text(type))).toList(),
+                  onChanged: (val) => setState(() => deviceType = val!),
                 ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: singlePriceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'سعر الساعة سنجل'),
-                ),
-                const SizedBox(height: 10),
-                TextField(
-                  controller: multiPriceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'سعر الساعة ملتي'),
-                ),
+                TextField(controller: singlePriceController, decoration: const InputDecoration(labelText: 'سعر الساعة سنجل'), keyboardType: TextInputType.number),
+                TextField(controller: multiPriceController, decoration: const InputDecoration(labelText: 'سعر الساعة ملتي'), keyboardType: TextInputType.number),
               ],
             ),
           ),
@@ -121,13 +104,10 @@ class DevicesPage extends StatelessWidget {
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
             ElevatedButton(
               onPressed: () {
-                if (nameController.text.isNotEmpty) {
-                  double sPrice = double.tryParse(singlePriceController.text) ?? 30.0;
-                  double mPrice = double.tryParse(multiPriceController.text) ?? 40.0;
-                  Provider.of<DeviceProvider>(context, listen: false)
-                      .addDevice(nameController.text, deviceType, sPrice, mPrice);
-                  Navigator.pop(ctx);
-                }
+                double sPrice = double.tryParse(singlePriceController.text) ?? 30.0;
+                double mPrice = double.tryParse(multiPriceController.text) ?? 40.0;
+                Provider.of<DeviceProvider>(context, listen: false).addDevice(nameController.text, deviceType, sPrice, mPrice);
+                Navigator.pop(ctx);
               },
               child: const Text('إضافة'),
             ),
@@ -138,7 +118,6 @@ class DevicesPage extends StatelessWidget {
   }
 }
 
-// كارت الجهاز الذي يحتوي على العداد الحي والتبديل وزر الحساب
 class DeviceCard extends StatefulWidget {
   final DeviceModel device;
   const DeviceCard({super.key, required this.device});
@@ -154,9 +133,7 @@ class _DeviceCardState extends State<DeviceCard> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (widget.device.isOccupied) {
-        setState(() {});
-      }
+      if (widget.device.isOccupied) setState(() {});
     });
   }
 
@@ -169,110 +146,29 @@ class _DeviceCardState extends State<DeviceCard> {
   @override
   Widget build(BuildContext context) {
     final device = widget.device;
-    double activePricePerHour = device.mode == 'single' ? device.singlePrice : device.multiPrice;
-
-    Duration elapsed = Duration.zero;
-    double currentCost = 0.0;
-
-    if (device.isOccupied && device.startTime != null) {
-      elapsed = DateTime.now().difference(device.startTime!.toDate());
-      double hours = elapsed.inSeconds / 3600.0;
-      currentCost = hours * activePricePerHour;
-    }
-
-    String formattedTime = 
-        '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
+    double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
+    Duration elapsed = device.isOccupied && device.startTime != null 
+        ? DateTime.now().difference(device.startTime!.toDate()) 
+        : Duration.zero;
+    double currentCost = (elapsed.inSeconds / 3600.0) * activePrice;
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      child: Padding(
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          children: [
-            ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: CircleAvatar(
-                backgroundColor: device.type == 'PS5' ? Colors.black : Colors.blue,
-                child: Text(device.type, style: const TextStyle(color: Colors.white, fontSize: 12)),
-              ),
-              title: Text(device.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: device.isOccupied
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const SizedBox(height: 5),
-                        Text('الوضع: ${device.mode == "single" ? "سنجل" : "ملتي"} ($activePricePerHour ج/س)'),
-                        const SizedBox(height: 3),
-                        Text('الوقت: $formattedTime', style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
-                        Text('التكلفة: ${currentCost.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-                      ],
-                    )
-                  : const Text('الجهاز متاح الآن', style: TextStyle(color: Colors.grey)),
-              trailing: device.isOccupied
-                  ? Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.swap_horiz, color: Colors.orange),
-                          tooltip: 'تبديل سنجل/ملتي',
-                          onPressed: () {
-                            Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
-                          },
-                        ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                          onPressed: () => _showFinishDialog(context, device, currentCost),
-                          child: const Text('إنهاء وحساب'),
-                        ),
-                      ],
-                    )
-                  : ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                      onPressed: () => _showStartDialog(context, device),
-                      child: const Text('بدء الجلسة'),
-                    ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showStartDialog(BuildContext context, DeviceModel device) {
-    String selectedMode = 'single';
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('بدء جلسة: ${device.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile(
-                title: Text('سنجل (${device.singlePrice} ج.م)'),
-                value: 'single',
-                groupValue: selectedMode,
-                onChanged: (val) => setState(() => selectedMode = val.toString()),
-              ),
-              RadioListTile(
-                title: Text('ملتي (${device.multiPrice} ج.م)'),
-                value: 'multi',
-                groupValue: selectedMode,
-                onChanged: (val) => setState(() => selectedMode = val.toString()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-            ElevatedButton(
-              onPressed: () {
-                Provider.of<DeviceProvider>(context, listen: false).startSession(device.id, selectedMode);
-                Navigator.pop(ctx);
-              },
-              child: const Text('بدء اللعب'),
-            ),
-          ],
-        ),
+      child: ListTile(
+        leading: CircleAvatar(child: Text(device.type)),
+        title: Text(device.name),
+        subtitle: device.isOccupied
+            ? Text('الوقت: ${elapsed.inMinutes} دقيقة | الحساب: ${currentCost.toStringAsFixed(2)} ج.م')
+            : const Text('متاح'),
+        trailing: device.isOccupied
+            ? Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(icon: const Icon(Icons.swap_horiz), onPressed: () => Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode)),
+                  ElevatedButton(onPressed: () => _showFinishDialog(context, device, currentCost), child: const Text('إنهاء')),
+                ],
+              )
+            : ElevatedButton(onPressed: () => _showStartDialog(context, device), child: const Text('بدء')),
       ),
     );
   }
@@ -283,60 +179,52 @@ class _DeviceCardState extends State<DeviceCard> {
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('حساب وإنهاء: ${device.name}'),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                TextField(
-                  controller: costController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    labelText: 'تعديل المبلغ الإجمالي قبل الحساب (ج.م)',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                const SizedBox(height: 15),
-                const Text('طريقة الدفع:'),
-                RadioListTile(
-                  title: const Text('كاش (Cash)'),
-                  value: 'كاش',
-                  groupValue: paymentMethod,
-                  onChanged: (val) => setState(() => paymentMethod = val.toString()),
-                ),
-                RadioListTile(
-                  title: const Text('فيزا (Visa)'),
-                  value: 'فيزا',
-                  groupValue: paymentMethod,
-                  onChanged: (val) => setState(() => paymentMethod = val.toString()),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              onPressed: () async {
-                double finalAmount = double.tryParse(costController.text) ?? calculatedCost;
-                await Provider.of<DeviceProvider>(context, listen: false)
-                    .stopSession(device.id, paymentMethod, finalAmount);
-                if (context.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('تم إغلاق الحساب بنجاح. المبلغ: $finalAmount ج.م ($paymentMethod)')),
-                  );
-                }
-              },
-              child: const Text('تأكيد وإغلاق'),
+      builder: (ctx) => AlertDialog(
+        title: Text('إنهاء حساب ${device.name}'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(controller: costController, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: 'المبلغ الإجمالي')),
+            DropdownButton<String>(
+              value: paymentMethod,
+              items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+              onChanged: (val) => setState(() => paymentMethod = val!),
             ),
           ],
         ),
+        actions: [
+          ElevatedButton(
+            onPressed: () async {
+              double finalAmount = double.tryParse(costController.text) ?? calculatedCost;
+              // التعديل هنا: تمرير 4 معاملات (id, name, paymentMethod, amount)
+              await Provider.of<DeviceProvider>(context, listen: false)
+                  .stopSession(device.id, device.name, paymentMethod, finalAmount);
+              if (context.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('تأكيد'),
+          ),
+        ],
       ),
     );
   }
+  
+  void _showStartDialog(BuildContext context, DeviceModel device) {
+    String mode = 'single';
+    showDialog(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('بدء الجلسة'),
+      content: StatefulBuilder(builder: (context, setState) => Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          RadioListTile(title: const Text('سنجل'), value: 'single', groupValue: mode, onChanged: (v) => setState(() => mode = v!)),
+          RadioListTile(title: const Text('ملتي'), value: 'multi', groupValue: mode, onChanged: (v) => setState(() => mode = v!)),
+        ],
+      )),
+      actions: [
+        ElevatedButton(onPressed: () {
+          Provider.of<DeviceProvider>(context, listen: false).startSession(device.id, mode);
+          Navigator.pop(ctx);
+        }, child: const Text('بدء')),
+      ],
+    ));
+  }
 }
- 
