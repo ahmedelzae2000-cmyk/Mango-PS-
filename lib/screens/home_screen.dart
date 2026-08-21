@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
@@ -21,50 +22,7 @@ class HomeScreen extends StatelessWidget {
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
                 final device = provider.devices[index];
-                double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Column(
-                      children: [
-                        ListTile(
-                          leading: CircleAvatar(
-                            backgroundColor: device.type == 'PS5' ? Colors.black : Colors.blue,
-                            child: Text(device.type, style: const TextStyle(color: Colors.white, fontSize: 12)),
-                          ),
-                          title: Text(device.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('السعر الحالي: $activePrice ج.م / ساعة (${device.mode == "single" ? "سنجل" : "ملتي"})'),
-                          trailing: device.isOccupied
-                              ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // زر التبديل السريع بين سنجل وملتي والجلسة شغالة
-                                    IconButton(
-                                      icon: const Icon(Icons.swap_horiz, color: Colors.orange),
-                                      tooltip: 'تغيير الوضع (سنجل/ملتي)',
-                                      onPressed: () {
-                                        provider.toggleMode(device.id, device.mode);
-                                      },
-                                    ),
-                                    ElevatedButton(
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                                      onPressed: () => _showFinishDialog(context, device),
-                                      child: const Text('إنهاء وحساب'),
-                                    ),
-                                  ],
-                                )
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
-                                  onPressed: () => _showStartDialog(context, device),
-                                  child: const Text('بدء الجلسة'),
-                                ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
+                return DeviceCard(device: device);
               },
             ),
       floatingActionButton: FloatingActionButton(
@@ -75,96 +33,6 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  // نافذة بدء الجلسة واختيار الوضع
-  void _showStartDialog(BuildContext context, DeviceModel device) {
-    String selectedMode = 'single';
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('بدء جلسة: ${device.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              RadioListTile(
-                title: Text('سنجل (${device.singlePrice} ج.م)'),
-                value: 'single',
-                groupValue: selectedMode,
-                onChanged: (val) => setState(() => selectedMode = val.toString()),
-              ),
-              RadioListTile(
-                title: Text('ملتي (${device.multiPrice} ج.م)'),
-                value: 'multi',
-                groupValue: selectedMode,
-                onChanged: (val) => setState(() => selectedMode = val.toString()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-            ElevatedButton(
-              onPressed: () {
-                Provider.of<DeviceProvider>(context, listen: false).startSession(device.id, selectedMode);
-                Navigator.pop(ctx);
-              },
-              child: const Text('بدء اللعب'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // نافذة إنهاء الجلسة واختيار طريقة الدفع (كاش / فيزا)
-  void _showFinishDialog(BuildContext context, DeviceModel device) {
-    String paymentMethod = 'كاش';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) => AlertDialog(
-          title: Text('إنهاء وحساب: ${device.name}'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('اختر طريقة الدفع:'),
-              RadioListTile(
-                title: const Text('كاش (Cash)'),
-                value: 'كاش',
-                groupValue: paymentMethod,
-                onChanged: (val) => setState(() => paymentMethod = val.toString()),
-              ),
-              RadioListTile(
-                title: const Text('فيزا (Visa)'),
-                value: 'فيزا',
-                groupValue: paymentMethod,
-                onChanged: (val) => setState(() => paymentMethod = val.toString()),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              onPressed: () async {
-                await Provider.of<DeviceProvider>(context, listen: false).stopSession(device.id, paymentMethod);
-                if (context.mounted) {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('تم إنهاء الجلسة بنجاح والدفع بنظام: $paymentMethod')),
-                  );
-                }
-              },
-              child: const Text('تأكيد الحساب'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // نافذة إضافة جهاز جديد مع أسعار سنجل وملتي
   void _showAddDeviceDialog(BuildContext context) {
     final nameController = TextEditingController();
     final singlePriceController = TextEditingController(text: '30');
@@ -223,6 +91,211 @@ class HomeScreen extends StatelessWidget {
                 }
               },
               child: const Text('إضافة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// كارت الجهاز المنفصل لتحديث العداد بداخله كل ثانية بدون إعادة تحميل الشاشة كلها
+class DeviceCard extends StatefulWidget {
+  final DeviceModel device;
+  const DeviceCard({super.key, required this.device});
+
+  @override
+  State<DeviceCard> createState() => _DeviceCardState();
+}
+
+class _DeviceCardState extends State<DeviceCard> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // تحديث الواجهة كل ثانية للعداد
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (widget.device.isOccupied) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final device = widget.device;
+    double activePricePerHour = device.mode == 'single' ? device.singlePrice : device.multiPrice;
+
+    // حساب الوقت المنقضي والتكلفة الحية
+    Duration elapsed = Duration.zero;
+    double currentCost = 0.0;
+
+    if (device.isOccupied && device.startTime != null) {
+      elapsed = DateTime.now().difference(device.startTime!.toDate());
+      double hours = elapsed.inSeconds / 3600.0;
+      currentCost = hours * activePricePerHour;
+    }
+
+    String formattedTime = 
+        '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
+
+    return Card(
+      margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      child: Padding(
+        padding: const EdgeInsets.all(10.0),
+        child: Column(
+          children: [
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: CircleAvatar(
+                backgroundColor: device.type == 'PS5' ? Colors.black : Colors.blue,
+                child: Text(device.type, style: const TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+              title: Text(device.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              subtitle: device.isOccupied
+                  ? Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 5),
+                        Text('الوضع: ${device.mode == "single" ? "سنجل" : "ملتي"} ($activePricePerHour ج/س)'),
+                        const SizedBox(height: 3),
+                        Text('الوقت: $formattedTime', style: const TextStyle(color: Colors.deepPurple, fontWeight: FontWeight.bold)),
+                        Text('التكلفة: ${currentCost.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                      ],
+                    )
+                  : const Text('الجهاز متاح الآن', style: TextStyle(color: Colors.grey)),
+              trailing: device.isOccupied
+                  ? Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.swap_horiz, color: Colors.orange),
+                          tooltip: 'تبديل سنجل/ملتي',
+                          onPressed: () {
+                            Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
+                          },
+                        ),
+                        ElevatedButton(
+                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                          onPressed: () => _showFinishDialog(context, device, currentCost),
+                          child: const Text('إنهاء وحساب'),
+                        ),
+                      ],
+                    )
+                  : ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white),
+                      onPressed: () => _showStartDialog(context, device),
+                      child: const Text('بدء الجلسة'),
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showStartDialog(BuildContext context, DeviceModel device) {
+    String selectedMode = 'single';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('بدء جلسة: ${device.name}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RadioListTile(
+                title: Text('سنجل (${device.singlePrice} ج.م)'),
+                value: 'single',
+                groupValue: selectedMode,
+                onChanged: (val) => setState(() => selectedMode = val.toString()),
+              ),
+              RadioListTile(
+                title: Text('ملتي (${device.multiPrice} ج.م)'),
+                value: 'multi',
+                groupValue: selectedMode,
+                onChanged: (val) => setState(() => selectedMode = val.toString()),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              onPressed: () {
+                Provider.of<DeviceProvider>(context, listen: false).startSession(device.id, selectedMode);
+                Navigator.pop(ctx);
+              },
+              child: const Text('بدء اللعب'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // نافذة إنهاء وحساب وتعديل السعر قبل الإغلاق
+  void _showFinishDialog(BuildContext context, DeviceModel device, double calculatedCost) {
+    final costController = TextEditingController(text: calculatedCost.toStringAsFixed(2));
+    String paymentMethod = 'كاش';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('حساب وإنهاء: ${device.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextField(
+                  controller: costController,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'تعديل المبلغ الإجمالي قبل الحساب (ج.م)',
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 15),
+                const Text('طريقة الدفع:'),
+                RadioListTile(
+                  title: const Text('كاش (Cash)'),
+                  value: 'كاش',
+                  groupValue: paymentMethod,
+                  onChanged: (val) => setState(() => paymentMethod = val.toString()),
+                ),
+                RadioListTile(
+                  title: const Text('فيزا (Visa)'),
+                  value: 'فيزا',
+                  groupValue: paymentMethod,
+                  onChanged: (val) => setState(() => paymentMethod = val.toString()),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              onPressed: () async {
+                double finalAmount = double.tryParse(costController.text) ?? calculatedCost;
+                await Provider.of<DeviceProvider>(context, listen: false)
+                    .stopSession(device.id, paymentMethod, finalAmount);
+                if (context.mounted) {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('تم إغلاق الحساب بنجاح. المبلغ: $finalAmount ج.م ($paymentMethod)')),
+                  );
+                }
+              },
+              child: const Text('تأكيد وإغلاق'),
             ),
           ],
         ),
