@@ -2,9 +2,48 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
+import 'shift_screen.dart';
+import 'settings_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    // قائمة الشاشات (الأجهزة مع كل مميزاتها، الورديات، الإعدادات)
+    final List<Widget> pages = [
+      const DevicesPage(),
+      const ShiftScreen(),
+      const SettingsScreen(),
+    ];
+
+    return Scaffold(
+      body: pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.deepPurple,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+        ],
+      ),
+    );
+  }
+}
+
+// صفحة الأجهزة بكل التعديلات والعدادات السابقة
+class DevicesPage extends StatelessWidget {
+  const DevicesPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -99,7 +138,7 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-// كارت الجهاز المنفصل لتحديث العداد بداخله كل ثانية بدون إعادة تحميل الشاشة كلها
+// كارت الجهاز الذي يحتوي على العداد الحي والتبديل وزر الحساب
 class DeviceCard extends StatefulWidget {
   final DeviceModel device;
   const DeviceCard({super.key, required this.device});
@@ -114,7 +153,6 @@ class _DeviceCardState extends State<DeviceCard> {
   @override
   void initState() {
     super.initState();
-    // تحديث الواجهة كل ثانية للعداد
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (widget.device.isOccupied) {
         setState(() {});
@@ -133,7 +171,6 @@ class _DeviceCardState extends State<DeviceCard> {
     final device = widget.device;
     double activePricePerHour = device.mode == 'single' ? device.singlePrice : device.multiPrice;
 
-    // حساب الوقت المنقضي والتكلفة الحية
     Duration elapsed = Duration.zero;
     double currentCost = 0.0;
 
@@ -240,7 +277,6 @@ class _DeviceCardState extends State<DeviceCard> {
     );
   }
 
-  // نافذة إنهاء وحساب وتعديل السعر قبل الإغلاق
   void _showFinishDialog(BuildContext context, DeviceModel device, double calculatedCost) {
     final costController = TextEditingController(text: calculatedCost.toStringAsFixed(2));
     String paymentMethod = 'كاش';
@@ -303,3 +339,4 @@ class _DeviceCardState extends State<DeviceCard> {
     );
   }
 }
+ 
