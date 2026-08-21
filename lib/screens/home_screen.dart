@@ -1,3 +1,61 @@
+import 'dart:io';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/device_provider.dart';
+import 'shift_screen.dart';
+import 'settings_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    const DevicesPage(),
+    const ShiftScreen(),
+    const SettingsScreen(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<DeviceProvider>(context);
+    
+    DecorationImage? bgImage;
+    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
+      bgImage = DecorationImage(image: FileImage(File(provider.customImagePath!)), fit: BoxFit.cover);
+    } else if (provider.backgroundType == 'داكن أنيق') {
+      bgImage = const DecorationImage(image: AssetImage('assets/bg.jpg'), fit: BoxFit.cover);
+    }
+
+    return Scaffold(
+      body: Stack(
+        children: [
+          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
+          Container(color: provider.appMode == 'داكن (Dark)' ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.1)),
+          SafeArea(child: _pages[_selectedIndex]),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        selectedItemColor: Colors.deepPurple,
+        unselectedItemColor: Colors.grey,
+        onTap: (index) => setState(() => _selectedIndex = index),
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+        ],
+      ),
+    );
+  }
+}
+
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -16,10 +74,10 @@ class DevicesPage extends StatelessWidget {
           : GridView.builder(
               padding: const EdgeInsets.all(10),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // عرض جهازين في كل صف (مربعات بجانب بعضها)
+                crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.85, // تحكم في طول وعرض المربع
+                childAspectRatio: 0.85,
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -36,7 +94,6 @@ class DevicesPage extends StatelessWidget {
   }
 
   void _showAddDeviceDialog(BuildContext context) {
-    // (نفس دالة إضافة الجهاز القديمة بدون تغيير)
     final nameController = TextEditingController();
     final sPriceController = TextEditingController(text: '30');
     final mPriceController = TextEditingController(text: '40');
@@ -81,7 +138,6 @@ class DevicesPage extends StatelessWidget {
   }
 }
 
-// --- تصميم الكارت المربع الصغير للأجهزة ---
 class DeviceGridCard extends StatefulWidget {
   final DeviceModel device;
   const DeviceGridCard({super.key, required this.device});
@@ -127,7 +183,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
 
     return InkWell(
       onTap: () {
-        // لو الجهاز متاح، اضغط لبدء الجلسة، لو مشغول اضغط لإنهاء أو إدارة
         if (!device.isOccupied) {
           _showStartDialog(context, device);
         } else {
@@ -263,7 +318,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           actions: [
             TextButton(
               onPressed: () {
-                // زر للتحويل السريع بين سنجل و ملتي أثناء التشغيل
                 Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
                 Navigator.pop(ctx);
               },
