@@ -4,9 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DeviceModel {
   String id;
   String name;
-  String type; // PS4 or PS5
+  String type;
   bool isOccupied;
-  String mode; // 'single' or 'multi'
+  String mode;
   Timestamp? startTime;
   double singlePrice;
   double multiPrice;
@@ -48,7 +48,6 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // إضافة جهاز مع سعرين (سنجل وملتي)
   Future<void> addDevice(String name, String type, double singlePrice, double multiPrice) async {
     await _db.collection('devices').add({
       'name': name,
@@ -61,7 +60,6 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // بدء الجلسة
   Future<void> startSession(String deviceId, String mode) async {
     await _db.collection('devices').doc(deviceId).update({
       'isOccupied': true,
@@ -70,7 +68,6 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // التبديل بين سنجل وملتي والجلسة شغالة
   Future<void> toggleMode(String deviceId, String currentMode) async {
     String newMode = currentMode == 'single' ? 'multi' : 'single';
     await _db.collection('devices').doc(deviceId).update({
@@ -78,9 +75,9 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // إنهاء الجلسة وتسجيل طريقة الدفع (كاش أو فيزا)
-  Future<void> stopSession(String deviceId, String paymentMethod) async {
-    // يمكنك هنا حفظ تفاصيل الفاتورة في collection منفصلة للتقارير لاحقاً
+  // إنهاء الجلسة مع إمكانية حفظ التكلفة النهائية وطريقة الدفع
+  Future<void> stopSession(String deviceId, String paymentMethod, double finalCost) async {
+    // يمكنك هنا لاحقاً حفظ الـ finalCost وطريقة الدفع في جدول الإيرادات/التقارير
     await _db.collection('devices').doc(deviceId).update({
       'isOccupied': false,
       'startTime': null,
