@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 void main() async {
+  // 1. تأكيد جاهزية محرك الفلاتر
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 2. انتهاء التهيئة أولاً وقبل تشغيل التطبيق
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase init error: $e");
+  }
+
   runApp(const MyApp());
 }
 
@@ -13,42 +22,13 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: FirebaseTestScreen(),
+      home: FirebaseStatusCheck(),
     );
   }
 }
 
-class FirebaseTestScreen extends StatefulWidget {
-  const FirebaseTestScreen({super.key});
-
-  @override
-  State<FirebaseTestScreen> createState() => _FirebaseTestScreenState();
-}
-
-class _FirebaseTestScreenState extends State<FirebaseTestScreen> {
-  String _status = 'جاري الاتصال بـ Firebase...';
-  Color _statusColor = Colors.orange;
-
-  @override
-  void initState() {
-    super.initState();
-    _initFirebase();
-  }
-
-  Future<void> _initFirebase() async {
-    try {
-      await Firebase.initializeApp();
-      setState(() {
-        _status = '✅ تم الاتصال بـ Firebase بنجاح!';
-        _statusColor = Colors.green;
-      });
-    } catch (e) {
-      setState(() {
-        _status = '❌ فشل الاتصال:\n$e';
-        _statusColor = Colors.red;
-      });
-    }
-  }
+class FirebaseStatusCheck extends StatelessWidget {
+  const FirebaseStatusCheck({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -57,32 +37,44 @@ class _FirebaseTestScreenState extends State<FirebaseTestScreen> {
         title: const Text('اختبار الفايربيس'),
         centerTitle: true,
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                _statusColor == Colors.green
-                    ? Icons.check_circle
-                    : (_statusColor == Colors.red ? Icons.error : Icons.hourglass_top),
-                size: 80,
-                color: _statusColor,
+      body: FutureBuilder(
+        // التأكد المباشر من وجود تطبيق الفايربيس
+        future: Future.value(Firebase.apps.isNotEmpty),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (snapshot.hasData && snapshot.data == true) {
+            return const Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.check_circle, size: 90, color: Colors.green),
+                  SizedBox(height: 16),
+                  Text(
+                    '✅ تم ربط الفايربيس بنجاح!',
+                    style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.green),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              Text(
-                _status,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: _statusColor,
+            );
+          }
+
+          return const Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.error, size: 90, color: Colors.red),
+                SizedBox(height: 16),
+                Text(
+                  '❌ الفايربيس غير متصل',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.red),
                 ),
-              ),
-            ],
-          ),
-        ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
