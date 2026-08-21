@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import '../providers/device_provider.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -9,43 +11,10 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  String _selectedMode = 'فاتح (Light)';
-  String _selectedBackground = 'افتراضي (Purple)';
-
-  @override
-  void initState() {
-    super.initState();
-    _loadSettings();
-  }
-
-  // تحميل الإعدادات المحفوظة مسبقاً
-  Future<void> _loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _selectedMode = prefs.getString('app_mode') ?? 'فاتح (Light)';
-      _selectedBackground = prefs.getString('app_bg') ?? 'افتراضي (Purple)';
-    });
-  }
-
-  // حفظ الإعدادات
-  Future<void> _saveSettings(String mode, String bg) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('app_mode', mode);
-    await prefs.setString('app_bg', bg);
-    setState(() {
-      _selectedMode = mode;
-      _selectedBackground = bg;
-    });
-
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('تم حفظ الإعدادات بنجاح')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
+    final provider = Provider.of<DeviceProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('الإعدادات والتخصيص'),
@@ -62,7 +31,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _selectedMode,
+              value: provider.appMode,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'اختر مود التطبيق',
@@ -72,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }).toList(),
               onChanged: (val) {
                 if (val != null) {
-                  _saveSettings(val, _selectedBackground);
+                  provider.updateSettings(val, provider.backgroundType);
                 }
               },
             ),
@@ -83,17 +52,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 10),
             DropdownButtonFormField<String>(
-              value: _selectedBackground,
+              value: provider.backgroundType,
               decoration: const InputDecoration(
                 border: OutlineInputBorder(),
                 labelText: 'اختر شكل الخلفية',
               ),
-              items: ['افتراضي (Purple)', 'داكن أنيق', 'لون هادئ'].map((bg) {
+              items: ['افتراضي (Purple)', 'داكن أنيق', 'لون هادئ', 'صورة مخصصة'].map((bg) {
                 return DropdownMenuItem(value: bg, child: Text(bg));
               }).toList(),
               onChanged: (val) {
                 if (val != null) {
-                  _saveSettings(_selectedMode, val);
+                  provider.updateSettings(provider.appMode, val);
+                }
+              },
+            ),
+            const SizedBox(height: 15),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+                minimumSize: const Size(double.infinity, 45),
+              ),
+              icon: const Icon(Icons.image),
+              label: const Text('اختيار خلفية مخصصة من الهاتف'),
+              onPressed: () async {
+                final ImagePicker picker = ImagePicker();
+                final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+                if (image != null) {
+                  await provider.updateSettings(provider.appMode, 'صورة مخصصة', imagePath: image.path);
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('تم اختيار الخلفية بنجاح')),
+                    );
+                  }
                 }
               },
             ),
@@ -109,7 +100,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 children: [
                   Text('معلومات النظام:', style: TextStyle(fontWeight: FontWeight.bold)),
                   SizedBox(height: 5),
-                  Text('اسم التطبيق: Mango PS v1'),
+                  Text('اسم التطبيق: Manga PS v1'),
                   Text('العملة: الجنيه المصري (ج.م)'),
                 ],
               ),
