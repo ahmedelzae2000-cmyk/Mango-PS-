@@ -37,12 +37,21 @@ class _FirebaseDebugScreenState extends State<FirebaseDebugScreen> {
 
   Future<void> _connectFirebase() async {
     try {
-      await Firebase.initializeApp();
+      // تمرير خيارات الفايربيس مباشرة لتجاوز خطأ values.xml نهائياً
+      await Firebase.initializeApp(
+        options: const FirebaseOptions(
+          apiKey: "AIzaSyB5UujdLmnqFvmujV3FSwSH2iI0L-78jk4",
+          appId: "1:603196411064:android:c0b7cd83ee50712d9ef84d",
+          messagingSenderId: "603196411064",
+          projectId: "mango-ps",
+          storageBucket: "mango-ps.firebasestorage.app",
+        ),
+      );
       setState(() {
         _isSuccess = true;
         _statusMessage = '✅ تم الاتصال بـ Firebase بنجاح!';
       });
-    } catch (e, stack) {
+    } catch (e) {
       setState(() {
         _isSuccess = false;
         _statusMessage = '❌ فشل التهيئة بسبب:\n\n$e';
@@ -73,7 +82,7 @@ class _FirebaseDebugScreenState extends State<FirebaseDebugScreen> {
                 _statusMessage,
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: _isSuccess ? Colors.green : Colors.red,
                 ),
