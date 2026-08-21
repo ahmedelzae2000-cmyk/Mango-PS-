@@ -3,7 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'providers/device_provider.dart';
-import 'screens/home_screen.dart';
+import 'screens/main_layout.dart'; // تم إضافة استدعاء شاشة التنقل الموحدة
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -69,7 +69,7 @@ class MyApp extends StatelessWidget {
                 ),
               );
             },
-            home: const HomeScreen(),
+            home: const MainLayout(), // تم استبدال HomeScreen بـ MainLayout هنا
           ),
         );
       },
