@@ -1,29 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-class ShiftScreen extends StatefulWidget {
+class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
 
-  @override
-  State<ShiftScreen> createState() => _ShiftScreenState();
-}
-
-class _ShiftScreenState extends State<ShiftScreen> {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  // بدء وردية جديدة
-  Future<void> _startShift() async {
-    await _db.collection('shifts').add({
+  Future<void> _startShift(BuildContext context) async {
+    await FirebaseFirestore.instance.collection('shifts').add({
       'startTime': FieldValue.serverTimestamp(),
       'endTime': null,
       'isActive': true,
-      'cashInDrawer': 0, // الرصيد المبدئي
+      'totalRevenue': 0.0,
+      'cashRevenue': 0.0,
+      'visaRevenue': 0.0,
+      'expenses': 0.0, // المصاريف
     });
   }
 
-  // إنهاء الوردية
   Future<void> _endShift(String shiftId) async {
-    await _db.collection('shifts').doc(shiftId).update({
+    await FirebaseFirestore.instance.collection('shifts').doc(shiftId).update({
       'endTime': FieldValue.serverTimestamp(),
       'isActive': false,
     });
@@ -31,15 +25,21 @@ class _ShiftScreenState extends State<ShiftScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final FirebaseFirestore db = FirebaseFirestore.instance;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('إدارة الورديات'), backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
+      appBar: AppBar(
+        title: const Text('إدارة الورديات'),
+        backgroundColor: Colors.deepPurple,
+        foregroundColor: Colors.white,
+      ),
       body: StreamBuilder<QuerySnapshot>(
-        stream: _db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
+        stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
           
           final shifts = snapshot.data!.docs;
-          bool hasActiveShift = shifts.any((s) => s['isActive'] == true);
+          bool hasActiveShift = shifts.any((s) => (s.data() as Map<String, dynamic>)['isActive'] == true);
 
           return Column(
             children: [
@@ -49,11 +49,15 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: hasActiveShift ? Colors.red : Colors.green,
                     minimumSize: const Size(double.infinity, 50),
+                    foregroundColor: Colors.white,
                   ),
                   onPressed: hasActiveShift 
-                      ? () => _endShift(shifts.firstWhere((s) => s['isActive'] == true).id)
-                      : _startShift,
-                  child: Text(hasActiveShift ? 'إنهاء الوردية الحالية' : 'بدء وردية جديدة', style: const TextStyle(color: Colors.white)),
+                      ? () => _endShift(shifts.firstWhere((s) => (s.data() as Map<String, dynamic>)['isActive'] == true).id)
+                      : () => _startShift(context),
+                  child: Text(
+                    hasActiveShift ? 'إنهاء الوردية الحالية' : 'بدء وردية جديدة',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                 ),
               ),
               Expanded(
@@ -61,10 +65,41 @@ class _ShiftScreenState extends State<ShiftScreen> {
                   itemCount: shifts.length,
                   itemBuilder: (context, index) {
                     final data = shifts[index].data() as Map<String, dynamic>;
-                    return ListTile(
-                      title: Text('وردية رقم ${index + 1}'),
-                      subtitle: Text(data['isActive'] ? 'نشطة حالياً' : 'مغلقة'),
-                      trailing: Text(data['isActive'] ? '🟢' : '🔴'),
+                    bool isActive = data['isActive'] ?? false;
+                    double total = (data['totalRevenue'] ?? 0.0).toDouble();
+                    double cash = (data['cashRevenue'] ?? 0.0).toDouble();
+                    double visa = (data['visaRevenue'] ?? 0.0).toDouble();
+                    double expenses = (data['expenses'] ?? 0.0).toDouble();
+
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('وردية رقم ${shifts.length - index}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red)),
+                              ],
+                            ),
+                            const Divider(),
+                            Text('💰 الإجمالي الكلي: $total ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple)),
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('💵 كاش: $cash ج.م'),
+                                Text('💳 فيزا: $visa ج.م'),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text('💸 المصاريف: $expenses ج.م', style: const TextStyle(color: Colors.red)),
+                          ],
+                        ),
+                      ),
                     );
                   },
                 ),
