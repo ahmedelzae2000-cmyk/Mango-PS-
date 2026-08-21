@@ -1,61 +1,3 @@
-import 'dart:io';
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/device_provider.dart';
-import 'shift_screen.dart';
-import 'settings_screen.dart';
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
-  final List<Widget> _pages = [
-    const DevicesPage(),
-    const ShiftScreen(),
-    const SettingsScreen(),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<DeviceProvider>(context);
-    
-    DecorationImage? bgImage;
-    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
-      bgImage = DecorationImage(image: FileImage(File(provider.customImagePath!)), fit: BoxFit.cover);
-    } else if (provider.backgroundType == 'داكن أنيق') {
-      bgImage = const DecorationImage(image: AssetImage('assets/bg.jpg'), fit: BoxFit.cover);
-    }
-
-    return Scaffold(
-      body: Stack(
-        children: [
-          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
-          Container(color: provider.themeMode == ThemeMode.dark ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.1)),
-          SafeArea(child: _pages[_selectedIndex]),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
-          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-        ],
-      ),
-    );
-  }
-}
-
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -71,12 +13,18 @@ class DevicesPage extends StatelessWidget {
       ),
       body: provider.devices.isEmpty
           ? const Center(child: Text('لا يوجد أجهزة، قم بإضافة جهاز جديد.'))
-          : ListView.builder(
+          : GridView.builder(
               padding: const EdgeInsets.all(10),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2, // عرض جهازين في كل صف (مربعات بجانب بعضها)
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 0.85, // تحكم في طول وعرض المربع
+              ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
                 final device = provider.devices[index];
-                return DeviceCardModern(device: device);
+                return DeviceGridCard(device: device);
               },
             ),
       floatingActionButton: FloatingActionButton(
@@ -88,6 +36,7 @@ class DevicesPage extends StatelessWidget {
   }
 
   void _showAddDeviceDialog(BuildContext context) {
+    // (نفس دالة إضافة الجهاز القديمة بدون تغيير)
     final nameController = TextEditingController();
     final sPriceController = TextEditingController(text: '30');
     final mPriceController = TextEditingController(text: '40');
@@ -132,16 +81,16 @@ class DevicesPage extends StatelessWidget {
   }
 }
 
-// --- كارت الجهاز الحديث (معالج بداخله الـ Timer والأزرار بشكل صحيح) ---
-class DeviceCardModern extends StatefulWidget {
+// --- تصميم الكارت المربع الصغير للأجهزة ---
+class DeviceGridCard extends StatefulWidget {
   final DeviceModel device;
-  const DeviceCardModern({super.key, required this.device});
+  const DeviceGridCard({super.key, required this.device});
 
   @override
-  State<DeviceCardModern> createState() => _DeviceCardModernState();
+  State<DeviceGridCard> createState() => _DeviceGridCardState();
 }
 
-class _DeviceCardModernState extends State<DeviceCardModern> {
+class _DeviceGridCardState extends State<DeviceGridCard> {
   Timer? _timer;
 
   @override
@@ -163,6 +112,8 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
   @override
   Widget build(BuildContext context) {
     final device = widget.device;
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
     double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
     Duration elapsed = Duration.zero;
     double currentCost = 0.0;
@@ -172,112 +123,83 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
       currentCost = (elapsed.inSeconds / 3600.0) * activePrice;
     }
 
-    String formattedTime = '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}:${(elapsed.inSeconds % 60).toString().padLeft(2, '0')}';
+    String formattedTime = '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}';
 
-    return Card(
-      elevation: 4,
-      margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: device.type == 'PS5' ? Colors.black : Colors.deepPurple,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(device.type, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+    return InkWell(
+      onTap: () {
+        // لو الجهاز متاح، اضغط لبدء الجلسة، لو مشغول اضغط لإنهاء أو إدارة
+        if (!device.isOccupied) {
+          _showStartDialog(context, device);
+        } else {
+          _showFinishDialog(context, device, currentCost);
+        }
+      },
+      child: Card(
+        elevation: 4,
+        color: isDark ? Colors.grey.shade900 : Colors.white,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+          side: BorderSide(
+            color: device.isOccupied ? Colors.red.shade400 : Colors.green.shade400,
+            width: 2,
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(10.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: device.type == 'PS5' ? Colors.black : Colors.deepPurple,
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    const SizedBox(width: 12),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(device.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                        const SizedBox(height: 2),
-                        Text(
-                          device.isOccupied ? 'مشغول (${device.mode == "single" ? "سنجل" : "ملتي"})' : 'متاح الآن',
-                          style: TextStyle(
-                            color: device.isOccupied ? Colors.red.shade700 : Colors.green.shade700,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                          ),
-                        ),
-                      ],
+                    child: Text(device.type, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                  ),
+                  Text(
+                    device.isOccupied ? (device.mode == 'single' ? 'سنجل' : 'ملتي') : 'متاح',
+                    style: TextStyle(
+                      color: device.isOccupied ? Colors.red.shade400 : Colors.green.shade400,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
                     ),
-                  ],
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                device.name,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: isDark ? Colors.white : Colors.black87,
                 ),
-                if (!device.isOccupied)
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                    ),
-                    onPressed: () => _showStartDialog(context, device),
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const Text('بدء'),
-                  ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              if (device.isOccupied) ...[
+                Text(
+                  formattedTime,
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepPurple),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${currentCost.toStringAsFixed(1)} ج.م',
+                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
+                ),
+              ] else ...[
+                const Text(
+                  'انقر للبدء',
+                  style: TextStyle(color: Colors.grey, fontSize: 11),
+                ),
               ],
-            ),
-            if (device.isOccupied) ...[
-              const Divider(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  Column(
-                    children: [
-                      const Text('الوقت المنقضي', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text(formattedTime, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.deepPurple)),
-                    ],
-                  ),
-                  Container(height: 30, width: 1, color: Colors.grey.shade300),
-                  Column(
-                    children: [
-                      const Text('التكلفة الحالية', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      const SizedBox(height: 4),
-                      Text('${currentCost.toStringAsFixed(2)} ج.م', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.green)),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode),
-                      icon: const Icon(Icons.swap_horiz, size: 18),
-                      label: Text(device.mode == 'single' ? 'تحويل لملتي' : 'تحويل لسنجل'),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red.shade600,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                      ),
-                      onPressed: () => _showFinishDialog(context, device, currentCost),
-                      icon: const Icon(Icons.stop, size: 18),
-                      label: const Text('إنهاء الحساب'),
-                    ),
-                  ),
-                ],
-              ),
+              const Spacer(),
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -288,7 +210,7 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('بدء الجلسة'),
+        title: Text('بدء جلسة ${device.name}'),
         content: StatefulBuilder(
           builder: (context, setState) => Column(
             mainAxisSize: MainAxisSize.min,
@@ -339,7 +261,14 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
             ],
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+            TextButton(
+              onPressed: () {
+                // زر للتحويل السريع بين سنجل و ملتي أثناء التشغيل
+                Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
+                Navigator.pop(ctx);
+              },
+              child: Text(device.mode == 'single' ? 'تحويل لملتي' : 'تحويل لسنجل'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 double finalAmount = double.tryParse(costController.text) ?? calculatedCost;
@@ -347,7 +276,8 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
                     .stopSession(device.id, device.name, paymentMethod, finalAmount);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              child: const Text('تأكيد وحفظ'),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+              child: const Text('إنهاء ودفع'),
             ),
           ],
         ),
@@ -355,3 +285,4 @@ class _DeviceCardModernState extends State<DeviceCardModern> {
     );
   }
 }
+ 
