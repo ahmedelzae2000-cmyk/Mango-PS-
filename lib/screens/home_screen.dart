@@ -16,6 +16,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
+    // تحديث الشاشة كل ثانية لحساب الوقت المباشر
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (mounted) setState(() {});
     });
@@ -43,7 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return (minutes / 60.0) * pricePerHour;
   }
 
-  // نافذة بدء الجلسة (اختيار سنجل / ملتي)
+  // نافذة بدء الجلسة مع ضبط ألوان النصوص ووضوحها
   void _showStartSessionDialog(String docId, String deviceName, double singlePrice, double multiPrice) {
     String selectedMode = 'sgl';
 
@@ -52,21 +53,35 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final textColor = isDarkMode ? Colors.white : Colors.black;
             return AlertDialog(
-              backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              title: Text('بدء جلسة: $deviceName', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+              backgroundColor: isDarkMode ? const Color(0xFF222222) : Colors.white,
+              title: Text(
+                'بدء جلسة: $deviceName',
+                style: TextStyle(color: textColor, fontWeight: FontWeight.bold),
+              ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAlignment.start,
                 children: [
-                  const Text('اختر نوع الجلسة:'),
+                  Text('اختر نوع الجلسة:', style: TextStyle(color: textColor, fontSize: 16)),
+                  const SizedBox(height: 10),
                   RadioListTile<String>(
-                    title: Text('فردي (Single) - $singlePrice ج.م/ساعة'),
+                    activeColor: Colors.green,
+                    title: Text(
+                      'فردي (Single) - $singlePrice ج.م/ساعة',
+                      style: TextStyle(color: textColor, fontSize: 14),
+                    ),
                     value: 'sgl',
                     groupValue: selectedMode,
                     onChanged: (val) => setDialogState(() => selectedMode = val!),
                   ),
                   RadioListTile<String>(
-                    title: Text('زوجي (Multi) - $multiPrice ج.م/ساعة'),
+                    activeColor: Colors.green,
+                    title: Text(
+                      'زوجي (Multi) - $multiPrice ج.م/ساعة',
+                      style: TextStyle(color: textColor, fontSize: 14),
+                    ),
                     value: 'mlt',
                     groupValue: selectedMode,
                     onChanged: (val) => setDialogState(() => selectedMode = val!),
@@ -76,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('إلغاء'),
+                  child: const Text('إلغاء', style: TextStyle(color: Colors.redAccent)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
@@ -90,7 +105,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
                     if (mounted) Navigator.pop(context);
                   },
-                  child: const Text('بدء الجلسة', style: TextStyle(color: Colors.white)),
+                  child: const Text('بدء الجلسة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -100,7 +115,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // نافذة إنهاء الجلسة (تعديل السعر + تحديد طريقة الدفع)
+  // نافذة إنهاء الجلسة
   void _showEndSessionDialog(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
     final startTimestamp = data['startTime'] as Timestamp?;
@@ -116,34 +131,40 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setDialogState) {
+            final textColor = isDarkMode ? Colors.white : Colors.black;
             return AlertDialog(
-              backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
-              title: Text('إنهاء جلسة: ${data['name']}', style: TextStyle(color: isDarkMode ? Colors.white : Colors.black)),
+              backgroundColor: isDarkMode ? const Color(0xFF222222) : Colors.white,
+              title: Text('إنهاء جلسة: ${data['name']}', style: TextStyle(color: textColor, fontWeight: FontWeight.bold)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAlignment.start,
                 children: [
-                  Text('النوع: ${data['sessionType'] ?? 'غير محدد'}'),
-                  Text('الوقت: ${_getDurationText(startTimestamp)}'),
+                  Text('النوع: ${data['sessionType'] ?? 'غير محدد'}', style: TextStyle(color: textColor)),
+                  Text('الوقت: ${_getDurationText(startTimestamp)}', style: TextStyle(color: textColor)),
                   const SizedBox(height: 15),
                   TextField(
                     controller: costController,
                     keyboardType: TextInputType.number,
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                    decoration: const InputDecoration(
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
                       labelText: 'التكلفة النهائية (ج.م)',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: textColor),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor.withOpacity(0.5))),
+                      focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
                     ),
                   ),
                   const SizedBox(height: 15),
                   DropdownButtonFormField<String>(
                     value: paymentMethod,
-                    dropdownColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
-                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
-                    decoration: const InputDecoration(
+                    dropdownColor: isDarkMode ? const Color(0xFF333333) : Colors.white,
+                    style: TextStyle(color: textColor),
+                    decoration: InputDecoration(
                       labelText: 'طريقة الدفع',
-                      border: OutlineInputBorder(),
+                      labelStyle: TextStyle(color: textColor),
+                      enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: textColor.withOpacity(0.5))),
+                      focusedBorder: const OutlineInputBorder(borderSide: BorderSide(color: Colors.green)),
                     ),
-                    items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                    items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m, style: TextStyle(color: textColor)))).toList(),
                     onChanged: (val) {
                       if (val != null) setDialogState(() => paymentMethod = val);
                     },
@@ -153,7 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('إلغاء'),
+                  child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
@@ -166,7 +187,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     });
                     if (mounted) Navigator.pop(context);
                   },
-                  child: const Text('إغلاق وحفظ', style: TextStyle(color: Colors.white)),
+                  child: const Text('إغلاق وحفظ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
               ],
             );
@@ -245,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 return Card(
                   elevation: 6,
-                  color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
+                  color: isDarkMode ? const Color(0xCC1E1E2C) : Colors.white.withOpacity(0.9),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   child: Padding(
                     padding: const EdgeInsets.all(12.0),
@@ -305,3 +326,4 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 }
+ 
