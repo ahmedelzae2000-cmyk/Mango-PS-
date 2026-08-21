@@ -66,14 +66,12 @@ class AppDrawer extends StatelessWidget {
         ),
       ),
       onTap: () {
-        Navigator.pop(context); // إغلاق القائمة
+        Navigator.pop(context); // إغلاق الـ Drawer
         if (onSelectScreen != null) {
           onSelectScreen!(index);
         } else {
-          // في حال تم استدعاؤه من شاشة فردية بدون MainLayout
-          if (ModalRoute.of(context)?.settings.name != routeName) {
-            Navigator.pushReplacementNamed(context, routeName);
-          }
+          // فتح الشاشة المحددة مباشرة
+          Navigator.pushNamed(context, routeName);
         }
       },
     );
