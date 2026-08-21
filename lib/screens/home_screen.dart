@@ -1,12 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
-import '../providers/auth_provider.dart';
 import 'pricing_screen.dart';
-import 'login_screen.dart';
 import 'expenses_screen.dart';
-import 'shift_screen.dart';
-import 'reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,24 +14,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
+    // استقبال الـ Provider بآمان مع حماية من الأخطاء
     final deviceProvider = Provider.of<DeviceProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Manga PS - الأجهزة'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-              authProvider.logout();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
+        title: const Text('Manga PS - إدارة الصالة'),
+        centerTitle: true,
       ),
       drawer: Drawer(
         child: ListView(
@@ -55,27 +40,11 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: () => Navigator.pop(context),
             ),
             ListTile(
-              leading: const Icon(Icons.access_time),
-              title: const Text('الوردية الحالية'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ShiftScreen()));
-              },
-            ),
-            ListTile(
               leading: const Icon(Icons.receipt_long),
               title: const Text('المصاريف'),
               onTap: () {
                 Navigator.pop(context);
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text('التقارير والإحصائيات'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportsScreen()));
               },
             ),
             ListTile(
@@ -101,13 +70,16 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.devices, size: 70, color: Colors.grey),
-                  const SizedBox(height: 12),
-                  const Text('لا توجد أجهزة مضافة حتى الآن', style: TextStyle(fontSize: 18)),
+                  const Icon(Icons.devices_other, size: 80, color: Colors.grey),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'لا توجد أجهزة مضافة حالياً',
+                    style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
                     icon: const Icon(Icons.add),
-                    label: const Text('إضافة جهاز جديد'),
+                    label: const Text('إضافة جهاز يدوي'),
                     onPressed: () {
                       Navigator.push(context, MaterialPageRoute(builder: (_) => const PricingScreen()));
                     },
@@ -133,7 +105,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text(device.name, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        Text(
+                          device.name,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
                         Text('النوع: ${device.type}'),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
