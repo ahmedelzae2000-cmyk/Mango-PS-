@@ -2,12 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../screens/home_screen.dart';
-import '../screens/devices_screen.dart';
-import '../screens/shifts_screen.dart';
-import '../screens/expenses_screen.dart';
+import '../screens/expense_screen.dart';
+import '../screens/pricing_screen.dart';
 import '../screens/reports_screen.dart';
-import '../screens/settings_screen.dart';
-import '../screens/login_screen.dart';
+import '../screens/shift_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({super.key});
@@ -15,7 +13,6 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appProvider = Provider.of<AppProvider>(context);
-    final isAdmin = appProvider.userRole == 'مدير';
 
     return Drawer(
       child: ListView(
@@ -23,75 +20,75 @@ class AppDrawer extends StatelessWidget {
         children: [
           UserAccountsDrawerHeader(
             accountName: Text(
-              appProvider.userName.isNotEmpty ? appProvider.userName : 'مستخدم',
+              appProvider.userName.isNotEmpty ? appProvider.userName : 'المستخدم',
               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
             ),
-            accountEmail: Text('الرتبة: ${appProvider.userRole}'),
+            accountEmail: Text('الصلاحية: ${appProvider.userRole}'),
             currentAccountPicture: const CircleAvatar(
               backgroundColor: Colors.white,
-              child: Icon(Icons.person, size: 40, color: Colors.blueGrey),
+              child: Icon(Icons.sports_esports, size: 40, color: Colors.black87),
             ),
-            decoration: const BoxDecoration(color: Color(0xFF1E1E2C)),
-          ),
-          ListTile(
-            leading: const Icon(Icons.sports_esports),
-            title: const Text('الأجهزة والعدادات (الرئيسية)'),
-            onTap: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            decoration: const BoxDecoration(
+              color: Colors.deepPurple,
             ),
           ),
           ListTile(
-            leading: const Icon(Icons.access_time),
-            title: const Text('الورديات'),
-            onTap: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ShiftsScreen()),
-            ),
+            leading: const Icon(Icons.dashboard),
+            title: const Text('الرئيسية (الأجهزة)'),
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const HomeScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.timer),
+            title: const Text('إدارة الورديات'),
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ShiftScreen()),
+              );
+            },
           ),
           ListTile(
             leading: const Icon(Icons.money_off),
-            title: const Text('المصاريف'),
-            onTap: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const ExpensesScreen()),
-            ),
+            title: const Text('المصاريف والسلف'),
+            onTap: () {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const ExpenseScreen()),
+              );
+            },
           ),
-          if (isAdmin) ...[
-            const Divider(),
-            ListTile(
-              leading: const Icon(Icons.build),
-              title: const Text('إدارة الأجهزة والأسعار'),
-              onTap: () => Navigator.pushReplacement(
+          ListTile(
+            leading: const Icon(Icons.pricetags_sharp),
+            title: const Text('تعديل الأسعار والأجهزة'),
+            onTap: () {
+              Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const DevicesScreen()),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.bar_chart),
-              title: const Text('التقارير المالية'),
-              onTap: () => Navigator.pushReplacement(
+                MaterialPageRoute(builder: (context) => const PricingScreen()),
+              );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.bar_chart),
+            title: const Text('التقارير المالية'),
+            onTap: () {
+              Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const ReportsScreen()),
-              ),
-            ),
-          ],
+                MaterialPageRoute(builder: (context) => const ReportsScreen()),
+              );
+            },
+          ),
           const Divider(),
           ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text('الإعدادات والمظهر'),
-            onTap: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-          ListTile(
-            leading: const Icon(Icons.exit_to_app, color: Colors.red),
+            leading: const Icon(Icons.logout, color: Colors.red),
             title: const Text('تسجيل الخروج', style: TextStyle(color: Colors.red)),
-            onTap: () => Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (_) => const LoginScreen()),
-            ),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, '/login');
+            },
           ),
         ],
       ),
