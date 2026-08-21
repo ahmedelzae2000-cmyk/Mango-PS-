@@ -8,7 +8,8 @@ class DeviceModel {
   bool isOccupied;
   String mode; // 'single' or 'multi'
   Timestamp? startTime;
-  double pricePerHour;
+  double singlePrice;
+  double multiPrice;
 
   DeviceModel({
     required this.id,
@@ -17,7 +18,8 @@ class DeviceModel {
     this.isOccupied = false,
     this.mode = 'single',
     this.startTime,
-    this.pricePerHour = 30.0,
+    required this.singlePrice,
+    required this.multiPrice,
   });
 }
 
@@ -38,26 +40,28 @@ class DeviceProvider extends ChangeNotifier {
           isOccupied: data['isOccupied'] ?? false,
           mode: data['mode'] ?? 'single',
           startTime: data['startTime'],
-          pricePerHour: (data['pricePerHour'] ?? 30.0).toDouble(),
+          singlePrice: (data['singlePrice'] ?? 30.0).toDouble(),
+          multiPrice: (data['multiPrice'] ?? 40.0).toDouble(),
         );
       }).toList();
       notifyListeners();
     });
   }
 
-  // 1. إضافة جهاز جديد (PS4 / PS5)
-  Future<void> addDevice(String name, String type, double price) async {
+  // إضافة جهاز مع سعرين (سنجل وملتي)
+  Future<void> addDevice(String name, String type, double singlePrice, double multiPrice) async {
     await _db.collection('devices').add({
       'name': name,
       'type': type,
       'isOccupied': false,
       'mode': 'single',
       'startTime': null,
-      'pricePerHour': price,
+      'singlePrice': singlePrice,
+      'multiPrice': multiPrice,
     });
   }
 
-  // 2. بدء الجلسة (اختيار سنجل أو ملتي)
+  // بدء الجلسة
   Future<void> startSession(String deviceId, String mode) async {
     await _db.collection('devices').doc(deviceId).update({
       'isOccupied': true,
@@ -66,18 +70,21 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // 3. تعديل سعر الجهاز
-  Future<void> updatePrice(String deviceId, double newPrice) async {
+  // التبديل بين سنجل وملتي والجلسة شغالة
+  Future<void> toggleMode(String deviceId, String currentMode) async {
+    String newMode = currentMode == 'single' ? 'multi' : 'single';
     await _db.collection('devices').doc(deviceId).update({
-      'pricePerHour': newPrice,
+      'mode': newMode,
     });
   }
 
-  // 4. إنهاء الجلسة وحساب الوقت
-  Future<void> stopSession(String deviceId) async {
+  // إنهاء الجلسة وتسجيل طريقة الدفع (كاش أو فيزا)
+  Future<void> stopSession(String deviceId, String paymentMethod) async {
+    // يمكنك هنا حفظ تفاصيل الفاتورة في collection منفصلة للتقارير لاحقاً
     await _db.collection('devices').doc(deviceId).update({
       'isOccupied': false,
       'startTime': null,
+      'mode': 'single',
     });
   }
 }
