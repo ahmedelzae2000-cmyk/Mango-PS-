@@ -6,21 +6,29 @@ class DeviceModel {
   String name;
   String type;
   bool isOccupied;
+  String isMulti; // 'single' أو 'multi'
+  DateTime? startTime;
 
   DeviceModel({
     required this.id,
     required this.name,
     required this.type,
     this.isOccupied = false,
+    this.isMulti = 'single',
+    this.startTime,
   });
 
   factory DeviceModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
+    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     return DeviceModel(
       id: doc.id,
       name: data['name'] ?? '',
       type: data['type'] ?? '',
       isOccupied: data['isOccupied'] ?? false,
+      isMulti: data['isMulti'] ?? 'single',
+      startTime: data['startTime'] != null 
+          ? (data['startTime'] as Timestamp).toDate() 
+          : null,
     );
   }
 
@@ -29,6 +37,8 @@ class DeviceModel {
       'name': name,
       'type': type,
       'isOccupied': isOccupied,
+      'isMulti': isMulti,
+      'startTime': startTime != null ? Timestamp.fromDate(startTime!) : null,
     };
   }
 }
@@ -57,14 +67,35 @@ class DeviceProvider extends ChangeNotifier {
       'name': name,
       'type': type,
       'isOccupied': false,
+      'isMulti': 'single',
+      'startTime': null,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }
 
-  // تغيير حالة الجهاز (تشغيل / إنهاء)
-  Future<void> toggleDeviceState(DeviceModel device) async {
+  // بدء جلسه جديدة للجهاز
+  Future<void> startSession(String deviceId, String mode) async {
+    await _db.collection('devices').doc(deviceId).update({
+      'isOccupied': true,
+      'isMulti': mode,
+      'startTime': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // تبديل وضع اللعب (سنجل / ملتي)
+  Future<void> togglePlayMode(DeviceModel device) async {
+    String newMode = device.isMulti == 'single' ? 'multi' : 'single';
     await _db.collection('devices').doc(device.id).update({
-      'isOccupied': !device.isOccupied,
+      'isMulti': newMode,
+    });
+  }
+
+  // إنهاء الجلسة وإعادة الجهاز للحالة المتاحة
+  Future<void> stopSession(String deviceId) async {
+    await _db.collection('devices').doc(deviceId).update({
+      'isOccupied': false,
+      'startTime': null,
+      'isMulti': 'single',
     });
   }
 }
