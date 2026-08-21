@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_provider.dart';
 import '../screens/home_screen.dart';
-import '../screens/expense_screen.dart';
+import '../screens/expenses_screen.dart'; // تم تعديل الاسم بحرف s
 import '../screens/pricing_screen.dart';
 import '../screens/reports_screen.dart';
 import '../screens/shift_screen.dart';
@@ -58,7 +58,7 @@ class AppDrawer extends StatelessWidget {
             onTap: () {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const ExpenseScreen()),
+                MaterialPageRoute(builder: (context) => const ExpensesScreen()), // تم تعديل الـ Class Name أيضاً إذا كان باسم ExpensesScreen
               );
             },
           ),
