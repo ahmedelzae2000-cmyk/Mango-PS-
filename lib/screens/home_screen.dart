@@ -1,8 +1,5 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/device_provider.dart';
-import 'pricing_screen.dart';
-import 'expenses_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -12,130 +9,272 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  @override
-  Widget build(BuildContext context) {
-    // استقبال الـ Provider بآمان مع حماية من الأخطاء
-    final deviceProvider = Provider.of<DeviceProvider>(context);
+  bool isDarkMode = true;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Manga PS - إدارة الصالة'),
-        centerTitle: true,
-      ),
-      drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const UserAccountsDrawerHeader(
-              accountName: Text('Manga PS', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-              accountEmail: Text('نظام إدارة صالة الألعاب'),
-              currentAccountPicture: CircleAvatar(
-                backgroundColor: Colors.white,
-                child: Icon(Icons.sports_esports, color: Colors.blue, size: 36),
+  // قائمة أجهزة افتراضية للتجربة
+  List<Map<String, dynamic>> devices = [
+    {
+      'id': '1',
+      'name': 'جهاز 1 - PS5',
+      'isOccupied': false,
+      'pricePerHour': 40.0,
+      'startTime': null,
+    },
+    {
+      'id': '2',
+      'name': 'جهاز 2 - PS4',
+      'isOccupied': false,
+      'pricePerHour': 30.0,
+      'startTime': null,
+    },
+  ];
+
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    // تحديث العداد كل ثانية لتحديث الوقت والتكلفة حياً
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  // حساب وقت الجلسة بالدقائق والثواني
+  String _getDurationText(DateTime? startTime) {
+    if (startTime == null) return '00:00:00';
+    final diff = DateTime.now().difference(startTime);
+    final hours = diff.inHours.toString().padLeft(2, '0');
+    final minutes = (diff.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (diff.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
+
+  // حساب التكلفة المبدئية بناءً على الوقت المنقضي
+  double _calculateCost(DateTime? startTime, double pricePerHour) {
+    if (startTime == null) return 0.0;
+    final minutes = DateTime.now().difference(startTime).inMinutes;
+    return (minutes / 60.0) * pricePerHour;
+  }
+
+  // نافذة إنهاء الجلسة (تعديل السعر + اختيار طريقة الدفع)
+  void _showEndSessionDialog(Map<String, dynamic> device) {
+    final startTime = device['startTime'] as DateTime?;
+    final double initialCost = _calculateCost(startTime, device['pricePerHour']);
+    
+    final TextEditingController costController =
+        TextEditingController(text: initialCost.toStringAsFixed(2));
+    String paymentMethod = 'كاش';
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              backgroundColor: isDarkMode ? const Color(0xFF1E1E1E) : Colors.white,
+              title: Text(
+                'إنهاء جلسة: ${device['name']}',
+                style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
               ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.tv),
-              title: const Text('شاشة الأجهزة'),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading: const Icon(Icons.receipt_long),
-              title: const Text('المصاريف'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const ExpensesScreen()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.settings),
-              title: const Text('إدارة الأجهزة والأسعار'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(context, MaterialPageRoute(builder: (_) => const PricingScreen()));
-              },
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text('إضافة جهاز'),
-        onPressed: () {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const PricingScreen()));
-        },
-      ),
-      body: deviceProvider.devices.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.devices_other, size: 80, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'لا توجد أجهزة مضافة حالياً',
-                    style: TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
+                  Text(
+                    'الوقت المستغرق: ${_getDurationText(startTime)}',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('إضافة جهاز يدوي'),
-                    onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PricingScreen()));
+                  const SizedBox(height: 15),
+                  // تعديل السعر قبل الإنهاء
+                  TextField(
+                    controller: costController,
+                    keyboardType: TextInputType.number,
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    decoration: const InputDecoration(
+                      labelText: 'التكلفة النهائية (ج.م)',
+                      border: OutlineInputBorder(),
+                      suffixText: 'ج.م',
+                    ),
+                  ),
+                  const SizedBox(height: 15),
+                  // تحديد طريقة الدفع
+                  DropdownButtonFormField<String>(
+                    value: paymentMethod,
+                    dropdownColor: isDarkMode ? const Color(0xFF2C2C2C) : Colors.white,
+                    style: TextStyle(color: isDarkMode ? Colors.white : Colors.black),
+                    decoration: const InputDecoration(
+                      labelText: 'طريقة الدفع',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: ['كاش', 'فيزا'].map((method) {
+                      return DropdownMenuItem(
+                        value: method,
+                        child: Text(method),
+                      );
+                    }).toList(),
+                    onChanged: (val) {
+                      if (val != null) setDialogState(() => paymentMethod = val);
                     },
                   ),
                 ],
               ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.all(12),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                  onPressed: () {
+                    setState(() {
+                      device['isOccupied'] = false;
+                      device['startTime'] = null;
+                    });
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'تم تحصيل ${costController.text} ج.م (${paymentMethod}) بنجاح!',
+                        ),
+                      ),
+                    );
+                  },
+                  child: const Text('تأكيد وإغلاق', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Theme(
+      data: isDarkMode ? ThemeData.dark() : ThemeData.light(),
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Manga PS - الرئيسية'),
+          centerTitle: true,
+          actions: [
+            // زر التبديل للوضع الداكن (Dark Mode)
+            IconButton(
+              icon: Icon(isDarkMode ? Icons.light_mode : Icons.dark_mode),
+              onPressed: () {
+                setState(() {
+                  isDarkMode = !isDarkMode;
+                });
+              },
+            ),
+          ],
+        ),
+        // الخلفية المختارة المخصصة
+        body: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: isDarkMode
+                  ? [const Color(0xFF0F2027), const Color(0xFF203A43), const Color(0xFF2C5364)]
+                  : [const Color(0xFFE0EAFC), const Color(0xFFCFDEF3)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(12.0),
+            child: GridView.builder(
+              itemCount: devices.length,
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                childAspectRatio: 0.85,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
+                childAspectRatio: 0.75,
+                crossAxisSpacing: 12,
+                mainAxisSpacing: 12,
               ),
-              itemCount: deviceProvider.devices.length,
               itemBuilder: (context, index) {
-                final device = deviceProvider.devices[index];
+                final dev = devices[index];
+                final isOccupied = dev['isOccupied'] as bool;
+                final startTime = dev['startTime'] as DateTime?;
+                final currentCost = _calculateCost(startTime, dev['pricePerHour']);
+
                 return Card(
-                  elevation: 3,
+                  elevation: 6,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  color: isDarkMode ? const Color(0xFF1E1E2C) : Colors.white,
                   child: Padding(
-                    padding: const EdgeInsets.all(10.0),
+                    padding: const EdgeInsets.all(12.0),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          device.name,
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                        Text('النوع: ${device.type}'),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: device.isOccupied ? Colors.red.shade100 : Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Text(
-                            device.isOccupied ? 'مشغول' : 'متاح',
-                            style: TextStyle(
-                              color: device.isOccupied ? Colors.red.shade900 : Colors.green.shade900,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          dev['name'],
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
+                        Divider(color: isDarkMode ? Colors.white24 : Colors.black12),
+                        // 1. إظهار وقت الجلسة والتكلفة حياً
+                        if (isOccupied) ...[
+                          Column(
+                            children: [
+                              const Text('الوقت المنقضي', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                _getDurationText(startTime),
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.blueAccent,
+                                ),
+                              ),
+                              const SizedBox(height: 6),
+                              const Text('التكلفة الحالية', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              Text(
+                                '${currentCost.toStringAsFixed(2)} ج.م',
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.green,
+                                ),
+                              ),
+                            ],
+                          )
+                        ] else ...[
+                          const Icon(Icons.sports_esports, size: 50, color: Colors.grey),
+                          const Text('الجهاز متاح', style: TextStyle(color: Colors.grey)),
+                        ],
+                        // أزرار التشغيل والإنهاء
                         SizedBox(
                           width: double.infinity,
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: device.isOccupied ? Colors.red : Colors.green,
+                              backgroundColor: isOccupied ? Colors.red : Colors.green,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                             onPressed: () {
-                              deviceProvider.toggleDeviceState(device);
+                              if (isOccupied) {
+                                // فتح نافذة الإنهاء والدفع
+                                _showEndSessionDialog(dev);
+                              } else {
+                                // بدء الجلسة
+                                setState(() {
+                                  dev['isOccupied'] = true;
+                                  dev['startTime'] = DateTime.now();
+                                });
+                              }
                             },
                             child: Text(
-                              device.isOccupied ? 'إنهاء' : 'بدء',
-                              style: const TextStyle(color: Colors.white),
+                              isOccupied ? 'إنهاء الجلسة' : 'بدء الجلسة',
+                              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ),
@@ -145,6 +284,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             ),
+          ),
+        ),
+      ),
     );
   }
 }
+ 
