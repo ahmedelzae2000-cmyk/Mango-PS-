@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 // موديل الجهاز
 class DeviceModel {
@@ -29,9 +30,19 @@ class DeviceProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   List<DeviceModel> _devices = [];
 
+  // إعدادات التطبيق
+  String _appMode = 'فاتح (Light)';
+  String _backgroundType = 'افتراضي (Purple)';
+  String? _customImagePath;
+
+  String get appMode => _appMode;
+  String get backgroundType => _backgroundType;
+  String? get customImagePath => _customImagePath;
+
   List<DeviceModel> get devices => _devices;
 
   DeviceProvider() {
+    _loadSettings();
     _db.collection('devices').snapshots().listen((snapshot) {
       _devices = snapshot.docs.map((doc) {
         var data = doc.data();
@@ -48,6 +59,33 @@ class DeviceProvider extends ChangeNotifier {
       }).toList();
       notifyListeners();
     });
+  }
+
+  // تحميل الإعدادات المحفوظة
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    _appMode = prefs.getString('app_mode') ?? 'فاتح (Light)';
+    _backgroundType = prefs.getString('app_bg') ?? 'افتراضي (Purple)';
+    _customImagePath = prefs.getString('custom_image_path');
+    notifyListeners();
+  }
+
+  // تحديث وحفظ الإعدادات
+  Future<void> updateSettings(String mode, String bgType, {String? imagePath}) async {
+    _appMode = mode;
+    _backgroundType = bgType;
+    if (imagePath != null) {
+      _customImagePath = imagePath;
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('app_mode', mode);
+    await prefs.setString('app_bg', bgType);
+    if (imagePath != null) {
+      await prefs.setString('custom_image_path', imagePath);
+    }
+    
+    notifyListeners();
   }
 
   Future<void> addDevice(String name, String type, double singlePrice, double multiPrice) async {
@@ -75,7 +113,7 @@ class DeviceProvider extends ChangeNotifier {
     await _db.collection('devices').doc(deviceId).update({'mode': newMode});
   }
 
-  Future<void> stopSession(String deviceId, String paymentMethod, double finalCost) async {
+  Future<void> stopSession(String deviceId, String deviceName, String paymentMethod, double finalCost) async {
     final batch = _db.batch();
 
     final deviceRef = _db.collection('devices').doc(deviceId);
@@ -85,6 +123,7 @@ class DeviceProvider extends ChangeNotifier {
       'mode': 'single',
     });
 
+    // تحديث الوردية النشطة
     final activeShiftQuery = await _db.collection('shifts')
         .where('isActive', isEqualTo: true)
         .limit(1)
@@ -114,6 +153,15 @@ class DeviceProvider extends ChangeNotifier {
     }
 
     await batch.commit();
+
+    // حفظ تفاصيل الجلسة في سجل الورديات (History)
+    await _db.collection('history').add({
+      'deviceName': deviceName,
+      'cost': finalCost,
+      'paymentMethod': paymentMethod,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
+
     notifyListeners();
   }
 }
