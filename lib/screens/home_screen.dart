@@ -20,6 +20,10 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('الرئيسية - أجهزة البلايستيشن'),
         centerTitle: true,
       ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showAddDeviceDialog,
+        child: const Icon(Icons.add),
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore.collection('devices').snapshots(),
         builder: (context, snapshot) {
@@ -27,7 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
             return const Center(child: CircularProgressIndicator());
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('لا توجد أجهزة متوفرة'));
+            return const Center(child: Text('لا توجد أجهزة، اضغط على + لإضافة جهاز'));
           }
 
           final docs = snapshot.data!.docs;
@@ -42,14 +46,20 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final data = docs[index].data() as Map<String, dynamic>;
+              final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
               final bool isBusy = data['isBusy'] ?? false;
 
               return Card(
-                color: isBusy ? Colors.red.shade900.withOpacity(0.3) : Colors.green.shade900.withOpacity(0.3),
+                color: isBusy
+                    ? Colors.red.shade900.withOpacity(0.3)
+                    : Colors.green.shade900.withOpacity(0.3),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: isBusy ? Colors.red : Colors.green, width: 2),
+                  side: BorderSide(
+                    color: isBusy ? Colors.red : Colors.green,
+                    width: 2,
+                  ),
                 ),
                 child: Padding(
                   padding: const EdgeInsets.all(12.0),
@@ -66,14 +76,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             size: 30,
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
                               color: isBusy ? Colors.red : Colors.green,
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               isBusy ? 'مشغول' : 'متاح',
-                              style: const TextStyle(color: Colors.white, fontSize: 12),
+                              style: const TextStyle(
+                                  color: Colors.white, fontSize: 12),
                             ),
                           ),
                         ],
@@ -83,7 +95,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         children: [
                           Text(
                             data['name'] ?? 'جهاز',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                           const SizedBox(height: 4),
                           Text('النوع: ${data['type'] ?? 'PS4'}'),
@@ -95,7 +108,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           backgroundColor: isBusy ? Colors.red : Colors.green,
                           minimumSize: const Size(double.infinity, 36),
                         ),
-                        onPressed: () {},
+                        onPressed: () {
+                          if (isBusy) {
+                            _endSession(doc.id);
+                          } else {
+                            _startSessionDialog(doc.id, data['name'] ?? 'جهاز');
+                          }
+                        },
                         child: Text(isBusy ? 'إنهاء الجلسة' : 'بدء الجلسة'),
                       ),
                     ],
@@ -107,5 +126,113 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
+  }
+
+  void _showAddDeviceDialog() {
+    final nameController = TextEditingController();
+    String selectedType = 'PS4';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('إضافة جهاز جديد'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'اسم/رقم الجهاز (مثال: جهاز 2)'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                items: ['PS4', 'PS5', 'VIP']
+                    .map((type) => DropdownMenuItem(value: type, child: Text(type)))
+                    .toList(),
+                onChanged: (val) => setDialogState(() => selectedType = val!),
+                decoration: const InputDecoration(labelText: 'نوع الجهاز'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameController.text.isNotEmpty) {
+                  await _firestore.collection('devices').add({
+                    'name': nameController.text,
+                    'type': selectedType,
+                    'isBusy': false,
+                    'elapsedTime': '00:00',
+                  });
+                  if (mounted) Navigator.pop(context);
+                }
+              },
+              child: const Text('إضافة'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _startSessionDialog(String docId, String deviceName) {
+    String selectedMode = 'Single';
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('بدء جلسة - $deviceName'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('اختر نوع اللعب:'),
+              RadioListTile<String>(
+                title: const Text('فردي (Single)'),
+                value: 'Single',
+                groupValue: selectedMode,
+                onChanged: (val) => setDialogState(() => selectedMode = val!),
+              ),
+              RadioListTile<String>(
+                title: const Text('زوجي (Multi)'),
+                value: 'Multi',
+                groupValue: selectedMode,
+                onChanged: (val) => setDialogState(() => selectedMode = val!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('إلغاء'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                await _firestore.collection('devices').doc(docId).update({
+                  'isBusy': true,
+                  'playMode': selectedMode,
+                  'startTime': FieldValue.serverTimestamp(),
+                  'elapsedTime': '00:00',
+                });
+                if (mounted) Navigator.pop(context);
+              },
+              child: const Text('تأكيد البدء'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _endSession(String docId) async {
+    await _firestore.collection('devices').doc(docId).update({
+      'isBusy': false,
+      'elapsedTime': '00:00',
+    });
   }
 }
