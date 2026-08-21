@@ -4,31 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 class DeviceModel {
   String id;
   String name;
-  String type;
   bool isOccupied;
-  String mode; // 'single' or 'multi'
-  Timestamp? startTime;
 
-  DeviceModel({
-    required this.id,
-    required this.name,
-    required this.type,
-    this.isOccupied = false,
-    this.mode = 'single',
-    this.startTime,
-  });
-
-  factory DeviceModel.fromFirestore(DocumentSnapshot doc) {
-    Map data = doc.data() as Map<String, dynamic>;
-    return DeviceModel(
-      id: doc.id,
-      name: data['name'] ?? '',
-      type: data['type'] ?? '',
-      isOccupied: data['isOccupied'] ?? false,
-      mode: data['mode'] ?? 'single',
-      startTime: data['startTime'],
-    );
-  }
+  DeviceModel({required this.id, required this.name, this.isOccupied = false});
 }
 
 class DeviceProvider extends ChangeNotifier {
@@ -39,27 +17,21 @@ class DeviceProvider extends ChangeNotifier {
 
   DeviceProvider() {
     _db.collection('devices').snapshots().listen((snapshot) {
-      _devices = snapshot.docs.map((doc) => DeviceModel.fromFirestore(doc)).toList();
+      _devices = snapshot.docs.map((doc) {
+        return DeviceModel(
+          id: doc.id,
+          name: doc['name'] ?? '',
+          isOccupied: doc['isOccupied'] ?? false,
+        );
+      }).toList();
       notifyListeners();
     });
   }
 
-  // دالة الإنهاء (المصححة)
+  // هذه دالة الإنهاء التي تحتاجها
   Future<void> stopSession(String deviceId) async {
-    try {
-      await _db.collection('devices').doc(deviceId).update({
-        'isOccupied': false,
-        'startTime': null,
-        'mode': 'single',
-      });
-    } catch (e) {
-      debugPrint("خطأ في إنهاء الجلسة: $e");
-    }
-  }
-
-  // دالة تغيير وضع اللعب
-  Future<void> toggleMode(String deviceId, String currentMode) async {
-    String newMode = currentMode == 'single' ? 'multi' : 'single';
-    await _db.collection('devices').doc(deviceId).update({'mode': newMode});
+    await _db.collection('devices').doc(deviceId).update({
+      'isOccupied': false,
+    });
   }
 }
