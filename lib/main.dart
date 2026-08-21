@@ -1,19 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'providers/device_provider.dart';
-import 'screens/home_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  try {
-    await Firebase.initializeApp();
-  } catch (e) {
-    debugPrint("Firebase init error: $e");
-  }
-
   runApp(const MyApp());
 }
 
@@ -22,41 +11,78 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => DeviceProvider()),
-      ],
-      child: MaterialApp(
-        title: 'Manga PS',
-        debugShowCheckedModeBanner: false,
-        localizationsDelegates: const [
-          GlobalMaterialLocalizations.delegate,
-          GlobalWidgetsLocalizations.delegate,
-          GlobalCupertinoLocalizations.delegate,
-        ],
-        supportedLocales: const [
-          Locale('ar', ''),
-        ],
-        locale: const Locale('ar', ''),
-        builder: (context, child) {
-          // حماية الشاشة من أخطاء الرسم الرمادية
-          ErrorWidget.builder = (FlutterErrorDetails details) {
-            return Scaffold(
-              body: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Text(
-                    'حدث خطأ في تحميل الصفحة:\n${details.exception}',
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(color: Colors.red, fontSize: 16),
-                  ),
+    return const MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: FirebaseTestScreen(),
+    );
+  }
+}
+
+class FirebaseTestScreen extends StatefulWidget {
+  const FirebaseTestScreen({super.key});
+
+  @override
+  State<FirebaseTestScreen> createState() => _FirebaseTestScreenState();
+}
+
+class _FirebaseTestScreenState extends State<FirebaseTestScreen> {
+  String _status = 'جاري الاتصال بـ Firebase...';
+  Color _statusColor = Colors.orange;
+
+  @override
+  void initState() {
+    super.initState();
+    _initFirebase();
+  }
+
+  Future<void> _initFirebase() async {
+    try {
+      await Firebase.initializeApp();
+      setState(() {
+        _status = '✅ تم الاتصال بـ Firebase بنجاح!';
+        _statusColor = Colors.green;
+      });
+    } catch (e) {
+      setState(() {
+        _status = '❌ فشل الاتصال:\n$e';
+        _statusColor = Colors.red;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('اختبار الفايربيس'),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                _statusColor == Colors.green
+                    ? Icons.check_circle
+                    : (_statusColor == Colors.red ? Icons.error : Icons.hourglass_top),
+                size: 80,
+                color: _statusColor,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                _status,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: _statusColor,
                 ),
               ),
-            );
-          };
-          return child!;
-        },
-        home: const HomeScreen(),
+            ],
+          ),
+        ),
       ),
     );
   }
