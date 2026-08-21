@@ -20,7 +20,7 @@ class SettingsScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),
         child: Column(
-          CrossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start, // تم تصحيح الحرف الأول c
           children: [
             // 1. قسم بيانات المستخدم الحالي
             Card(
