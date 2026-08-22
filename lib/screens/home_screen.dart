@@ -35,7 +35,6 @@ class _HomeScreenState extends State<HomeScreen> {
       ],
     ];
 
-    // لو الموظف غير المؤشر وتم إخفاء الصفحات، نعيده للصفحة الأولى
     if (!isManager && _selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
@@ -77,7 +76,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      // إظهار شريط التنقل السفلي للمدير فقط، أو إخفاؤه تماماً لو الموظف لا يملك سوى شاشة واحدة
       bottomNavigationBar: isManager
           ? BottomNavigationBar(
               currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
@@ -93,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
               ],
             )
-          : null, // الموظف لن يظهر له شريط سفلي طالما يملك شاشة الأجهزة فقط
+          : null,
     );
   }
 }
@@ -209,7 +207,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   void initState() {
     super.initState();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (widget.device.isOccupied) {
+      if (widget.device.isOccupied && !widget.device.isPaused) {
         if (mounted) setState(() {});
       }
     });
@@ -233,16 +231,31 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     double currentCost = 0.0;
 
     if (device.isOccupied && device.startTime != null) {
-      elapsed = DateTime.now().difference(device.startTime!.toDate());
-      currentCost = (elapsed.inSeconds / 3600.0) * activePrice;
+      DateTime now = DateTime.now();
+      DateTime start = device.startTime!.toDate();
+      
+      // حساب الوقت الفعلي مطروحاً منه فترات الإيقاف المؤقت
+      int totalPausedSeconds = device.pausedDuration;
+      if (device.isPaused && device.pauseStartTime != null) {
+        totalPausedSeconds += now.difference(device.pauseStartTime!.toDate()).inSeconds;
+      }
+
+      int elapsedSeconds = now.difference(start).inSeconds - totalPausedSeconds;
+      if (elapsedSeconds < 0) elapsedSeconds = 0;
+
+      elapsed = Duration(seconds: elapsedSeconds);
+      currentCost = (elapsedSeconds / 3600.0) * activePrice;
     }
 
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     String formattedTime = '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
+    Color borderColor = device.isOccupied 
+        ? (device.isPaused ? Colors.orangeAccent : Colors.redAccent) 
+        : Colors.greenAccent;
+
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      // الضغط العادي: لبدء أو إنهاء الجلسة
       onTap: () async {
         if (!device.isOccupied) {
           bool success = await provider.startSession(device.id, device.mode);
@@ -256,10 +269,9 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             _showStartDialog(context, device);
           }
         } else {
-          _showFinishDialog(context, device, currentCost);
+          _showFinishDialog(context, device, currentCost, provider);
         }
       },
-      // الضغط المطول: لحذف الجهاز (للمدير فقط)
       onLongPress: () {
         if (isManager) {
           showDialog(
@@ -268,15 +280,9 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               title: Text('حذف الجهاز ${device.name}'),
               content: const Text('هل أنت متأكد من حذف هذا الجهاز نهائياً؟'),
               actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text('إلغاء'),
-                ),
+                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    foregroundColor: Colors.white,
-                  ),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                   onPressed: () {
                     provider.deleteDevice(device.id);
                     Navigator.pop(ctx);
@@ -295,13 +301,10 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
         decoration: BoxDecoration(
           color: isDark ? Colors.grey.shade900.withOpacity(0.9) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: device.isOccupied ? Colors.redAccent.withOpacity(0.9) : Colors.greenAccent.withOpacity(0.9),
-            width: 2,
-          ),
+          border: Border.all(color: borderColor.withOpacity(0.9), width: 2),
           boxShadow: [
             BoxShadow(
-              color: device.isOccupied ? Colors.red.withOpacity(0.2) : Colors.green.withOpacity(0.2),
+              color: borderColor.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -340,14 +343,16 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                       height: 8,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
+                        color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.redAccent) : Colors.greenAccent,
                       ),
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      device.isOccupied ? (device.mode == 'single' ? 'سنجل' : 'ملتي') : 'متاح',
+                      device.isOccupied 
+                          ? (device.isPaused ? 'مؤقت' : (device.mode == 'single' ? 'سنجل' : 'ملتي')) 
+                          : 'متاح',
                       style: TextStyle(
-                        color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
+                        color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.redAccent) : Colors.greenAccent,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -380,10 +385,10 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                       children: [
                         Text(
                           formattedTime,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12, 
                             fontWeight: FontWeight.bold, 
-                            color: Colors.amberAccent,
+                            color: device.isPaused ? Colors.orangeAccent : Colors.amberAccent,
                           ),
                         ),
                         Text(
@@ -438,7 +443,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 
-  void _showFinishDialog(BuildContext context, DeviceModel device, double calculatedCost) {
+  void _showFinishDialog(BuildContext context, DeviceModel device, double calculatedCost, DeviceProvider provider) {
     final costController = TextEditingController(text: calculatedCost.toStringAsFixed(2));
     String paymentMethod = 'كاش';
 
@@ -446,7 +451,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('إنهاء حساب ${device.name}'),
+          title: Text('إدارة جلسة ${device.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -465,9 +470,21 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ],
           ),
           actions: [
+            // زر إيقاف مؤقت / استئناف
+            TextButton.icon(
+              style: TextButton.styleFrom(
+                foregroundColor: device.isPaused ? Colors.green : Colors.orange,
+              ),
+              icon: Icon(device.isPaused ? Icons.play_arrow : Icons.pause),
+              label: Text(device.isPaused ? 'استئناف الجلسة' : 'إيقاف مؤقت'),
+              onPressed: () async {
+                await provider.togglePauseSession(device.id, device.isPaused);
+                if (ctx.mounted) Navigator.pop(ctx);
+              },
+            ),
             TextButton(
               onPressed: () {
-                Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
+                provider.toggleMode(device.id, device.mode);
                 Navigator.pop(ctx);
               },
               child: Text(device.mode == 'single' ? 'تحويل لملتي' : 'تحويل لسنجل'),
@@ -476,8 +493,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               onPressed: () async {
                 double parsedVal = double.tryParse(costController.text) ?? calculatedCost;
                 double finalAmount = parsedVal >= 0 ? parsedVal : calculatedCost;
-                await Provider.of<DeviceProvider>(context, listen: false)
-                    .stopSession(device.id, device.name, paymentMethod, finalAmount);
+                await provider.stopSession(device.id, device.name, paymentMethod, finalAmount);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
               style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
@@ -489,5 +505,4 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 }
- 
  
