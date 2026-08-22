@@ -225,6 +225,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   Widget build(BuildContext context) {
     final device = widget.device;
     final provider = Provider.of<DeviceProvider>(context);
+    final bool isManager = provider.userRole == 'مدير';
     final bool isDark = provider.appMode == 'داكن (Dark)';
     
     double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
@@ -241,9 +242,9 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
+      // الضغط العادي: لبدء أو إنهاء الجلسة
       onTap: () async {
         if (!device.isOccupied) {
-          // التحقق من وجود وردية نشطة قبل بدء الجلسة
           bool success = await provider.startSession(device.id, device.mode);
           if (!success && context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -252,11 +253,42 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             return;
           }
           if (success && context.mounted) {
-            // لو نجحت والنافذة تحتاج حوار بدء
             _showStartDialog(context, device);
           }
         } else {
           _showFinishDialog(context, device, currentCost);
+        }
+      },
+      // الضغط المطول: لحذف الجهاز (للمدير فقط)
+      onLongPress: () {
+        if (isManager) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text('حذف الجهاز ${device.name}'),
+              content: const Text('هل أنت متأكد من حذف هذا الجهاز نهائياً؟'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('إلغاء'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () {
+                    provider.deleteDevice(device.id);
+                    Navigator.pop(ctx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('تم حذف ${device.name} بنجاح')),
+                    );
+                  },
+                  child: const Text('حذف'),
+                ),
+              ],
+            ),
+          );
         }
       },
       child: Container(
