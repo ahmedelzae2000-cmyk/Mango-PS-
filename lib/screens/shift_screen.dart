@@ -187,7 +187,7 @@ class ShiftScreen extends StatelessWidget {
             ),
           ),
 
-          // عرض تفاصيل الجلسات مع زر الحذف الفردي للمدير فقط
+          // عرض تفاصيل الجلسات مع زر الحذف الفردي والخصم التلقائي من الوردية النشطة للمدير فقط
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
@@ -220,18 +220,62 @@ class ShiftScreen extends StatelessWidget {
                         ),
                         title: Text(deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text('طريقة الدفع: $paymentMethod - التكلفة: $cost ج.م'),
-                        // زر حذف الجلسة يظهر للمدير فقط في الـ Trailing
+                        // زر حذف الجلسة يظهر للمدير فقط في الـ Trailing مع الخصم التلقائي
                         trailing: isManager
                             ? IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 20),
                                 onPressed: () {
-                                  _showDeleteDialog(
-                                    context, 
-                                    'حذف هذه الجلسة', 
-                                    'هل أنت متأكد من حذف هذه الجلسة من السجل؟', 
-                                    () async {
-                                      await db.collection('history').doc(historyId).delete();
-                                    }
+                                  showDialog(
+                                    context: context,
+                                    builder: (ctx) => AlertDialog(
+                                      title: const Text('حذف هذه الجلسة'),
+                                      content: const Text('هل أنت متأكد من حذف هذه الجلسة من السجل وخصم قيمتها من الوردية الحالية؟'),
+                                      actions: [
+                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                                        ElevatedButton(
+                                          style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                                          onPressed: () async {
+                                            // 1. البحث عن الوردية النشطة حالياً لخصم المبلغ منها
+                                            var activeShiftQuery = await db.collection('shifts').where('isActive', isEqualTo: true).get();
+                                            
+                                            if (activeShiftQuery.docs.isNotEmpty) {
+                                              var shiftDoc = activeShiftQuery.docs.first;
+                                              var shiftData = shiftDoc.data();
+                                              
+                                              double currentTotal = (shiftData['totalRevenue'] ?? 0.0).toDouble();
+                                              double currentCash = (shiftData['cashRevenue'] ?? 0.0).toDouble();
+                                              double currentVisa = (shiftData['visaRevenue'] ?? 0.0).toDouble();
+
+                                              double newTotal = (currentTotal - cost < 0) ? 0.0 : currentTotal - cost;
+                                              double newCash = currentCash;
+                                              double newVisa = currentVisa;
+
+                                              if (paymentMethod == 'كاش') {
+                                                newCash = (currentCash - cost < 0) ? 0.0 : currentCash - cost;
+                                              } else {
+                                                newVisa = (currentVisa - cost < 0) ? 0.0 : currentVisa - cost;
+                                              }
+
+                                              // تحديث الوردية بالقيم الجديدة بعد الخصم
+                                              await db.collection('shifts').doc(shiftDoc.id).update({
+                                                'totalRevenue': newTotal,
+                                                'cashRevenue': newCash,
+                                                'visaRevenue': newVisa,
+                                              });
+                                            }
+
+                                            // 2. حذف الجلسة من سجل الـ history
+                                            await db.collection('history').doc(historyId).delete();
+                                            
+                                            Navigator.pop(ctx);
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(content: Text('تم حذف الجلسة وخصم قيمتها من الوردية بنجاح')),
+                                            );
+                                          },
+                                          child: const Text('حذف وخصم'),
+                                        ),
+                                      ],
+                                    ),
                                   );
                                 },
                               )
@@ -248,7 +292,7 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لعرض رسالة تأكيد الحذف
+  // دالة مساعدة لعرض رسالة تأكيد الحذف العامة
   void _showDeleteDialog(BuildContext context, String title, String content, VoidCallback onDelete) {
     showDialog(
       context: context,
@@ -270,3 +314,4 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 }
+ 
