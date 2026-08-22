@@ -7,7 +7,7 @@ import 'shift_screen.dart';
 import 'settings_screen.dart';
 import 'login_screen.dart';
 import 'expenses_screen.dart'; 
-import 'report_screen.dart'; // تم تعديل اسم الملف هنا بدون حرف s
+import 'report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,7 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
       const ShiftScreen(),
       if (isManager) ...[
         const ExpensesScreen(),
-        const ReportScreen(), // التأكد من مطابقة اسم الكونستركتور أيضاً
+        const ReportScreen(),
         const SettingsScreen(),
       ],
     ];
@@ -124,10 +124,10 @@ class DevicesPage extends StatelessWidget {
           : GridView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2, // جهازين في كل صف بالشكل الشبابي
+                crossAxisCount: 2,
                 crossAxisSpacing: 14,
                 mainAxisSpacing: 14,
-                childAspectRatio: 1.4, // كارت عريض وأنيق
+                childAspectRatio: 1.35,
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -233,7 +233,9 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       currentCost = (elapsed.inSeconds / 3600.0) * activePrice;
     }
 
-    String formattedTime = '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}';
+    // تنسيق العداد بدقة عالية (ساعات:دقائق:ثواني)
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    String formattedTime = '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
@@ -246,37 +248,52 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade900.withOpacity(0.85) : Colors.white,
+          color: isDark ? Colors.grey.shade900.withOpacity(0.9) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: device.isOccupied ? Colors.redAccent.withOpacity(0.8) : Colors.greenAccent.withOpacity(0.8),
+            color: device.isOccupied ? Colors.redAccent.withOpacity(0.9) : Colors.greenAccent.withOpacity(0.9),
             width: 2,
           ),
           boxShadow: [
             BoxShadow(
-              color: device.isOccupied ? Colors.red.withOpacity(0.15) : Colors.green.withOpacity(0.15),
+              color: device.isOccupied ? Colors.red.withOpacity(0.2) : Colors.green.withOpacity(0.2),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
           ],
         ),
-        padding: const EdgeInsets.all(12.0),
+        padding: const EdgeInsets.all(10.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
+            // شارة نوع الجهاز (PS4 / PS5) بشكل جمالي مع أيقونة تحكم
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: device.type == 'PS5' ? Colors.black : Colors.deepPurple,
+                    color: device.type == 'PS5' ? Colors.blueGrey.shade900 : Colors.deepPurple,
                     borderRadius: BorderRadius.circular(8),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.2),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      )
+                    ],
                   ),
-                  child: Text(
-                    device.type,
-                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.sports_esports, color: Colors.amberAccent, size: 14),
+                      const SizedBox(width: 4),
+                      Text(
+                        device.type,
+                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                      ),
+                    ],
                   ),
                 ),
                 Row(
@@ -302,6 +319,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 ),
               ],
             ),
+            // اسم الجهاز في المنتصف
             Center(
               child: Text(
                 device.name,
@@ -314,19 +332,36 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
+            // العداد الدقيق والتكلفة الحالية
             device.isOccupied
-                ? Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        formattedTime,
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.amberAccent),
-                      ),
-                      Text(
-                        '${currentCost.toStringAsFixed(1)} ج.م',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.greenAccent),
-                      ),
-                    ],
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.35),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          formattedTime,
+                          style: const TextStyle(
+                            fontSize: 12, 
+                            fontWeight: FontWeight.bold, 
+                            color: Colors.amberAccent,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          '${currentCost.toStringAsFixed(1)} ج.م',
+                          style: const TextStyle(
+                            fontSize: 13, 
+                            fontWeight: FontWeight.bold, 
+                            color: Colors.greenAccent,
+                          ),
+                        ),
+                      ],
+                    ),
                   )
                 : const Center(
                     child: Text(
