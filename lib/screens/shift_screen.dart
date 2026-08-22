@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'expenses_screen.dart'; // تأكد من استيراد شاشة المصاريف
+import 'expenses_screen.dart'; // شاشة المصاريف المنفصلة
+import 'report_screen.dart';   // شاشة التقرير المالي المنفصلة
 
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
@@ -34,7 +35,7 @@ class ShiftScreen extends StatelessWidget {
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
         actions: [
-          // زر المصاريف في الـ AppBar
+          // زر المصاريف في الـ AppBar لينتقل للشاشة المنفصلة
           IconButton(
             icon: const Icon(Icons.money_off),
             tooltip: 'المصاريف والسلف',
@@ -47,16 +48,19 @@ class ShiftScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // زر بدء أو إنهاء الوردية + زر التقرير
+          // زر بدء أو إنهاء الوردية + زر التقرير المنفصل
           StreamBuilder<QuerySnapshot>(
             stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
             builder: (context, snapshot) {
               if (!snapshot.hasData) return const SizedBox.shrink();
               
               final shifts = snapshot.data!.docs;
-              var activeShiftDoc = shifts.where((s) => (s.data() as Map<String, dynamic>)['isActive'] == true);
-              bool hasActiveShift = activeShiftDoc.isNotEmpty;
-              String? activeShiftId = hasActiveShift ? activeShiftDoc.first.id : null;
+              bool hasActiveShift = shifts.any((s) => (s.data() as Map<String, dynamic>)['isActive'] == true);
+              
+              String? activeShiftId;
+              if (hasActiveShift) {
+                activeShiftId = shifts.firstWhere((s) => (s.data() as Map<String, dynamic>)['isActive'] == true).id;
+              }
 
               return Padding(
                 padding: const EdgeInsets.all(12.0),
@@ -80,7 +84,7 @@ class ShiftScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 10),
-                    // زر التقرير المالي للوردية النشطة
+                    // زر الانتقال لشاشة التقرير المالي المنفصلة
                     Expanded(
                       flex: 1,
                       child: ElevatedButton.icon(
@@ -89,7 +93,12 @@ class ShiftScreen extends StatelessWidget {
                           minimumSize: const Size(double.infinity, 45),
                           foregroundColor: Colors.white,
                         ),
-                        onPressed: () => _showReportDialog(context, activeShiftId),
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => const ReportScreen()),
+                          );
+                        },
                         icon: const Icon(Icons.assessment, size: 18),
                         label: const Text('تقرير'),
                       ),
@@ -205,86 +214,5 @@ class ShiftScreen extends StatelessWidget {
       ),
     );
   }
-
-  // دالة جلب وعرض تقرير الوردية النشطة من Firebase مباشرة
-  void _showReportDialog(BuildContext context, String? shiftId) async {
-    if (shiftId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('لا توجد وردية نشطة حالياً لعرض تقريرها')),
-      );
-      return;
-    }
-
-    // جلب بيانات الوردية الحالية
-    var shiftDoc = await FirebaseFirestore.instance.collection('shifts').doc(shiftId).get();
-    if (!shiftDoc.exists) return;
-    var shiftData = shiftDoc.data() as Map<String, dynamic>;
-    double totalRevenue = (shiftData['totalRevenue'] ?? 0.0).toDouble();
-    double cashRevenue = (shiftData['cashRevenue'] ?? 0.0).toDouble();
-    double visaRevenue = (shiftData['visaRevenue'] ?? 0.0).toDouble();
-
-    // جلب المصاريف والسلف المرتبطة بهذه الوردية من كولكشن expenses
-    var expensesQuery = await FirebaseFirestore.instance
-        .collection('expenses')
-        .where('shiftId', isEqualTo: shiftId)
-        .get();
-
-    double totalExpenses = 0.0;
-    double totalAdvances = 0.0;
-
-    for (var doc in expensesQuery.docs) {
-      var data = doc.data();
-      double amount = (data['amount'] ?? 0.0).toDouble();
-      String type = data['type'] ?? 'مصروف';
-      if (type == 'مصروف') {
-        totalExpenses += amount;
-      } else if (type == 'سلفة') {
-        totalAdvances += amount;
-      }
-    }
-
-    double netProfit = totalRevenue - totalExpenses;
-
-    if (!context.mounted) return;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('التقرير المالي للوردية النشطة'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              title: const Text('إجمالي المبيعات'),
-              trailing: Text('$totalRevenue ج.م', style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
-            ),
-            ListTile(
-              title: const Text('إجمالي الكاش / الفيزا'),
-              trailing: Text('كاش: $cashRevenue | فيزا: $visaRevenue', style: const TextStyle(fontSize: 12)),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('إجمالي المصاريف'),
-              trailing: Text('$totalExpenses ج.م', style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-            ),
-            ListTile(
-              title: const Text('إجمالي السلف'),
-              trailing: Text('$totalAdvances ج.م', style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-            ),
-            const Divider(),
-            ListTile(
-              title: const Text('صافي الخزنة (بعد المصاريف)', style: TextStyle(fontWeight: FontWeight.bold)),
-              trailing: Text('$netProfit ج.م', style: TextStyle(fontWeight: FontWeight.bold, color: netProfit >= 0 ? Colors.deepPurple : Colors.red)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إغلاق'),
-          ),
-        ],
-      ),
-    );
-  }
 }
+ 
