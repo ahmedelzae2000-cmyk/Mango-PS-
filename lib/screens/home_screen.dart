@@ -1,101 +1,3 @@
-import 'dart:io';
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/device_provider.dart';
-import 'shift_screen.dart';
-import 'settings_screen.dart';
-import 'login_screen.dart';
-import 'expenses_screen.dart'; 
-import 'report_screen.dart';
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<DeviceProvider>(context);
-    final bool isManager = provider.userRole == 'مدير';
-
-    // الصفحات التي تظهر بناءً على الصلاحية
-    List<Widget> pages = [
-      const DevicesPage(),
-      if (isManager) ...[
-        const ShiftScreen(),
-        const ExpensesScreen(),
-        const ReportScreen(),
-        const SettingsScreen(),
-      ],
-    ];
-
-    if (!isManager && _selectedIndex >= pages.length) {
-      _selectedIndex = 0;
-    }
-
-    DecorationImage? bgImage;
-    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
-      bgImage = DecorationImage(image: FileImage(File(provider.customImagePath!)), fit: BoxFit.cover);
-    } else if (provider.backgroundType == 'داكن أنيق') {
-      bgImage = const DecorationImage(image: AssetImage('assets/bg.jpg'), fit: BoxFit.cover);
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Manga PS (${provider.userRole})'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () {
-              provider.setUserRole('موظف');
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
-          Container(color: provider.appMode == 'داكن (Dark)' ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.1)),
-          SafeArea(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: pages,
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: isManager
-          ? BottomNavigationBar(
-              currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
-              selectedItemColor: Colors.deepPurple,
-              unselectedItemColor: Colors.grey,
-              type: BottomNavigationBarType.fixed,
-              onTap: (index) => setState(() => _selectedIndex = index),
-              items: const [
-                BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
-                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
-                BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
-                BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-                BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-              ],
-            )
-          : null,
-    );
-  }
-}
-
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -108,7 +10,7 @@ class DevicesPage extends StatelessWidget {
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: const Text(
-          'صالة الأجهزة',
+          'Manga PS 🎮',
           style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
         elevation: 0,
@@ -123,12 +25,12 @@ class DevicesPage extends StatelessWidget {
               ),
             )
           : GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
-                childAspectRatio: 1.35,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
+                childAspectRatio: 0.78, // نسبة طول الكارت لتناسب التصميم الاحترافي
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -137,10 +39,9 @@ class DevicesPage extends StatelessWidget {
               },
             ),
       floatingActionButton: isManager
-          ? FloatingActionButton.extended(
+          ? FloatingActionButton(
               backgroundColor: Colors.deepPurple,
-              icon: const Icon(Icons.add, color: Colors.white),
-              label: const Text('إضافة جهاز', style: TextStyle(color: Colors.white)),
+              child: const Icon(Icons.add, color: Colors.white),
               onPressed: () => _showAddDeviceDialog(context),
             )
           : null,
@@ -169,8 +70,8 @@ class DevicesPage extends StatelessWidget {
                 items: ['PS4', 'PS5'].map((t) => DropdownMenuItem(value: t, child: Text(t))).toList(),
                 onChanged: (v) => deviceType = v!,
               ),
-              TextField(controller: sPriceController, decoration: const InputDecoration(labelText: 'سعر السنجل'), keyboardType: TextInputType.number),
-              TextField(controller: mPriceController, decoration: const InputDecoration(labelText: 'سعر الملتي'), keyboardType: TextInputType.number),
+              TextField(controller: sPriceController, decoration: const InputDecoration(labelText: 'سعر الفردي'), keyboardType: TextInputType.number),
+              TextField(controller: mPriceController, decoration: const InputDecoration(labelText: 'سعر الزوجي'), keyboardType: TextInputType.number),
             ],
           ),
         ),
@@ -224,7 +125,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     final device = widget.device;
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
-    final bool isDark = provider.appMode == 'داكن (Dark)';
     
     double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
     Duration elapsed = Duration.zero;
@@ -234,7 +134,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       DateTime now = DateTime.now();
       DateTime start = device.startTime!.toDate();
       
-      // حساب الوقت الفعلي مطروحاً منه فترات الإيقاف المؤقت
       int totalPausedSeconds = device.pausedDuration;
       if (device.isPaused && device.pauseStartTime != null) {
         totalPausedSeconds += now.difference(device.pauseStartTime!.toDate()).inSeconds;
@@ -250,193 +149,181 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     String formattedTime = '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
-    Color borderColor = device.isOccupied 
-        ? (device.isPaused ? Colors.orangeAccent : Colors.redAccent) 
-        : Colors.greenAccent;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: () async {
-        if (!device.isOccupied) {
-          bool success = await provider.startSession(device.id, device.mode);
-          if (!success && context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('لا يمكن بدء الجلسة، يجب فتح وردية أولاً!')),
-            );
-            return;
-          }
-          if (success && context.mounted) {
-            _showStartDialog(context, device);
-          }
-        } else {
-          _showFinishDialog(context, device, currentCost, provider);
-        }
-      },
-      onLongPress: () {
-        if (isManager) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              title: Text('حذف الجهاز ${device.name}'),
-              content: const Text('هل أنت متأكد من حذف هذا الجهاز نهائياً؟'),
-              actions: [
-                TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-                  onPressed: () {
-                    provider.deleteDevice(device.id);
-                    Navigator.pop(ctx);
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('تم حذف ${device.name} بنجاح')),
-                    );
-                  },
-                  child: const Text('حذف'),
-                ),
-              ],
-            ),
-          );
-        }
-      },
-      child: Container(
-        decoration: BoxDecoration(
-          color: isDark ? Colors.grey.shade900.withOpacity(0.9) : Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: borderColor.withOpacity(0.9), width: 2),
-          boxShadow: [
-            BoxShadow(
-              color: borderColor.withOpacity(0.2),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        padding: const EdgeInsets.all(10.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: device.type == 'PS5' ? Colors.blueGrey.shade900 : Colors.deepPurple,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.sports_esports, color: Colors.amberAccent, size: 14),
-                      const SizedBox(width: 4),
-                      Text(
-                        device.type,
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.redAccent) : Colors.greenAccent,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      device.isOccupied 
-                          ? (device.isPaused ? 'مؤقت' : (device.mode == 'single' ? 'سنجل' : 'ملتي')) 
-                          : 'متاح',
-                      style: TextStyle(
-                        color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.redAccent) : Colors.greenAccent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            Center(
-              child: Text(
-                device.name,
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: isDark ? Colors.white : Colors.black87,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            device.isOccupied
-                ? Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.35),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          formattedTime,
-                          style: TextStyle(
-                            fontSize: 12, 
-                            fontWeight: FontWeight.bold, 
-                            color: device.isPaused ? Colors.orangeAccent : Colors.amberAccent,
-                          ),
-                        ),
-                        Text(
-                          '${currentCost.toStringAsFixed(1)} ج.م',
-                          style: const TextStyle(
-                            fontSize: 13, 
-                            fontWeight: FontWeight.bold, 
-                            color: Colors.greenAccent,
-                          ),
-                        ),
-                      ],
-                    ),
-                  )
-                : const Center(
-                    child: Text(
-                      'انقر لبدء الجلسة',
-                      style: TextStyle(color: Colors.grey, fontSize: 11),
-                    ),
-                  ),
-          ],
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF212121), // لون كرت داكن أنيق مطابق للصورة
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.green) : Colors.transparent,
+          width: 1.5,
         ),
       ),
-    );
-  }
-
-  void _showStartDialog(BuildContext context, DeviceModel device) {
-    String mode = device.mode;
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('بدء جلسة ${device.name}'),
-        content: StatefulBuilder(
-          builder: (context, setState) => Column(
-            mainAxisSize: MainAxisSize.min,
+      padding: const EdgeInsets.all(12.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // السطر الأول: اسم الجهاز وأيقونة الحذف للمدير
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              RadioListTile(title: const Text('سنجل'), value: 'single', groupValue: mode, onChanged: (v) => setState(() => mode = v!)),
-              RadioListTile(title: const Text('ملتي'), value: 'multi', groupValue: mode, onChanged: (v) => setState(() => mode = v!)),
+              Text(
+                device.name,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+              ),
+              if (isManager)
+                InkWell(
+                  onTap: () {
+                    showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: Text('حذف الجهاز ${device.name}'),
+                        content: const Text('هل أنت متأكد من حذف هذا الجهاز نهائياً؟'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            onPressed: () {
+                              provider.deleteDevice(device.id);
+                              Navigator.pop(ctx);
+                            },
+                            child: const Text('حذف'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () {
-              Provider.of<DeviceProvider>(context, listen: false).startSession(device.id, mode);
-              Navigator.pop(ctx);
-            },
-            child: const Text('بدء'),
+
+          // نوع الجهاز (PS4 أو PS5) في المنتصف داخل إطار مخصص
+          Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              decoration: BoxDecoration(
+                border: Border.all(color: Colors.grey.shade600),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                device.type,
+                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+
+          // العداد والمبلغ المالي
+          Center(
+            child: Column(
+              children: [
+                Text(
+                  device.isOccupied ? formattedTime : '00:00:00',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: device.isOccupied 
+                        ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent) 
+                        : Colors.white70,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${currentCost.toStringAsFixed(2)} ج.م',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.amber,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // أزرار التبديل (زوجي / فردي)
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => provider.toggleMode(device.id, 'multi'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: device.mode == 'multi' ? Colors.grey.shade800 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'زوجي',
+                          style: TextStyle(
+                            color: device.mode == 'multi' ? Colors.white : Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    onTap: () => provider.toggleMode(device.id, 'single'),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      decoration: BoxDecoration(
+                        color: device.mode == 'single' ? Colors.grey.shade800 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          'فردي',
+                          style: TextStyle(
+                            color: device.mode == 'single' ? Colors.white : Colors.grey,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // زر التشغيل أو الإيقاف الأخضر السفلي
+          SizedBox(
+            width: double.infinity,
+            height: 36,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.green.shade600,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                padding: EdgeInsets.zero,
+              ),
+              onPressed: () async {
+                if (!device.isOccupied) {
+                  bool success = await provider.startSession(device.id, device.mode);
+                  if (!success && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('لا يمكن بدء الجلسة، يجب فتح وردية أولاً!')),
+                    );
+                  }
+                } else {
+                  _showFinishDialog(context, device, currentCost, provider);
+                }
+              },
+              child: Text(
+                device.isOccupied ? 'إيقاف / محاسبة' : 'تشغيل',
+                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
           ),
         ],
       ),
@@ -451,53 +338,58 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('إدارة جلسة ${device.name}'),
+          title: Text('إنهاء جلسة: ${device.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              Text('الوقت المنقضي: ${costController.text.isNotEmpty ? "" : ""}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
+              const SizedBox(height: 10),
               TextField(
                 controller: costController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'المبلغ الإجمالي (ج.م)'),
+                decoration: const InputDecoration(
+                  labelText: 'المبلغ النهائي (تعديل السعر ج.م)',
+                  border: OutlineInputBorder(),
+                ),
               ),
               const SizedBox(height: 15),
-              DropdownButton<String>(
+              const Text('طريقة الدفع', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 5),
+              DropdownButtonFormField<String>(
                 value: paymentMethod,
-                isExpanded: true,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
                 items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                 onChanged: (val) => setState(() => paymentMethod = val!),
               ),
             ],
           ),
           actions: [
-            // زر إيقاف مؤقت / استئناف
-            TextButton.icon(
+            TextButton(
               style: TextButton.styleFrom(
                 foregroundColor: device.isPaused ? Colors.green : Colors.orange,
               ),
-              icon: Icon(device.isPaused ? Icons.play_arrow : Icons.pause),
-              label: Text(device.isPaused ? 'استئناف الجلسة' : 'إيقاف مؤقت'),
               onPressed: () async {
                 await provider.togglePauseSession(device.id, device.isPaused);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
+              child: Text(device.isPaused ? 'استئناف' : 'إيقاف مؤقت'),
             ),
             TextButton(
-              onPressed: () {
-                provider.toggleMode(device.id, device.mode);
-                Navigator.pop(ctx);
-              },
-              child: Text(device.mode == 'single' ? 'تحويل لملتي' : 'تحويل لسنجل'),
+              onPressed: () => Navigator.pop(ctx), 
+              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
             ),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.deepPurple,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () async {
                 double parsedVal = double.tryParse(costController.text) ?? calculatedCost;
-                double finalAmount = parsedVal >= 0 ? parsedVal : calculatedCost;
-                await provider.stopSession(device.id, device.name, paymentMethod, finalAmount);
+                await provider.stopSession(device.id, device.name, paymentMethod, parsedVal >= 0 ? parsedVal : calculatedCost);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
-              child: const Text('إنهاء ودفع'),
+              child: const Text('حفظ وتسجيل الفاتورة'),
             ),
           ],
         ),
