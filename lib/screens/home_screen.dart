@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
 import 'shift_screen.dart';
 import 'settings_screen.dart';
+import 'login_screen.dart'; // أضفنا استيراد شاشة الدخول للرجوع إليها عند الحاجة
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,8 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
-    
-    // إذا كان الموظف واقف على تبويب الإعدادات (رقم 2) وحصل تغيير، نرجعه للأجهزة تلقائياً
+
+    // إذا كان الموظف في صفحة الإعدادات وحصل تحديث، نرجعه للأجهزة تلقائياً
     if (!isManager && _selectedIndex > 1) {
       _selectedIndex = 0;
     }
@@ -36,21 +37,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text('Manga PS (${provider.userRole})'),
+        elevation: 0,
         actions: [
-          // زر تبديل الصلاحية أو إدخال كلمة سر المدير
+          // زر تسجيل الخروج أو تبديل الصلاحية للعودة لشاشة الدخول
           IconButton(
-            icon: Icon(isManager ? Icons.admin_panel_settings : Icons.lock, 
-                color: isManager ? Colors.amber : Colors.white),
-            tooltip: isManager ? 'أنت مدير (انقر للتحويل لموظف)' : 'دخول المدير',
+            icon: const Icon(Icons.logout),
+            tooltip: 'تسجيل الخروج',
             onPressed: () {
-              if (isManager) {
-                provider.setUserRole('موظف');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('تم التحويل لوضع الموظف بنجاح')),
-                );
-              } else {
-                _showAdminLoginDialog(context);
-              }
+              provider.setUserRole('موظف'); // إعادة تعيين الصلاحية
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
             },
           ),
         ],
@@ -65,14 +63,14 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 const DevicesPage(),
                 const ShiftScreen(),
-                if (isManager) const SettingsScreen(), // الإعدادات تظهر للمدير فقط
+                if (isManager) const SettingsScreen(), // الإعدادات مخفية تماماً ولا تظهر إلا للمدير
               ],
             ),
           ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
+        currentIndex: _selectedIndex > (isManager ? 2 : 1) ? 0 : _selectedIndex,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
         onTap: (index) => setState(() => _selectedIndex = index),
@@ -81,42 +79,6 @@ class _HomeScreenState extends State<HomeScreen> {
           const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
           if (isManager) 
             const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'), // تختفي تماماً للموظف
-        ],
-      ),
-    );
-  }
-
-  // نافذة باسورد المدير
-  void _showAdminLoginDialog(BuildContext context) {
-    final passwordController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('دخول المدير'),
-        content: TextField(
-          controller: passwordController,
-          obscureText: true,
-          keyboardType: TextInputType.number,
-          decoration: const InputDecoration(labelText: 'أدخل كلمة مرور المدير'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
-          ElevatedButton(
-            onPressed: () {
-              if (passwordController.text == '1234') {
-                Provider.of<DeviceProvider>(context, listen: false).setUserRole('مدير');
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('مرحباً بك يا مدير النظام!'), backgroundColor: Colors.green),
-                );
-              } else {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('كلمة المرور غير صحيحة!'), backgroundColor: Colors.red),
-                );
-              }
-            },
-            child: const Text('دخول'),
-          ),
         ],
       ),
     );
@@ -154,7 +116,7 @@ class DevicesPage extends StatelessWidget {
                 return DeviceGridCard(device: device);
               },
             ),
-      // زر إضافة الأجهزة يظهر للمدير فقط
+      // زر إضافة الأجهزة يظهر للمدير فقط ويختفي عن الموظف
       floatingActionButton: isManager
           ? FloatingActionButton(
               backgroundColor: Colors.deepPurple,
@@ -413,3 +375,4 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 }
+ 
