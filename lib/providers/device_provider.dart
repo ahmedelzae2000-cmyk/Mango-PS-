@@ -12,8 +12,23 @@ class DeviceModel {
   Timestamp? startTime;
   double singlePrice;
   double multiPrice;
+  bool isPaused;              // <--- حالة الإيقاف المؤقت
+  int pausedDuration;         // <--- إجمالي ثواني الإيقاف
+  Timestamp? pauseStartTime;  // <--- وقت بدء الإيقاف الحالي
 
-  DeviceModel({required this.id, required this.name, required this.type, this.isOccupied = false, this.mode = 'single', this.startTime, required this.singlePrice, required this.multiPrice});
+  DeviceModel({
+    required this.id, 
+    required this.name, 
+    required this.type, 
+    this.isOccupied = false, 
+    this.mode = 'single', 
+    this.startTime, 
+    required this.singlePrice, 
+    required this.multiPrice,
+    this.isPaused = false,
+    this.pausedDuration = 0,
+    this.pauseStartTime,
+  });
 }
 
 class ExpenseModel {
@@ -65,6 +80,9 @@ class DeviceProvider extends ChangeNotifier {
           startTime: data['startTime'],
           singlePrice: (data['singlePrice'] ?? 30.0).toDouble(),
           multiPrice: (data['multiPrice'] ?? 40.0).toDouble(),
+          isPaused: data['isPaused'] ?? false,
+          pausedDuration: data['pausedDuration'] ?? 0,
+          pauseStartTime: data['pauseStartTime'],
         );
       }).toList();
       notifyListeners();
@@ -150,11 +168,21 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- دوال الأجهزة والورديات والجلسات (مع الشروط الجديدة) ---
+  // --- دوال الأجهزة والورديات والجلسات ---
 
   Future<void> addDevice(String name, String type, double s, double m) async {
     if (_userRole != 'مدير') return;
-    await _db.collection('devices').add({'name': name, 'type': type, 'isOccupied': false, 'mode': 'single', 'singlePrice': s, 'multiPrice': m});
+    await _db.collection('devices').add({
+      'name': name, 
+      'type': type, 
+      'isOccupied': false, 
+      'mode': 'single', 
+      'singlePrice': s, 
+      'multiPrice': m,
+      'isPaused': false,
+      'pausedDuration': 0,
+      'pauseStartTime': null,
+    });
   }
 
   Future<void> deleteDevice(String id) async {
@@ -192,7 +220,10 @@ class DeviceProvider extends ChangeNotifier {
     await _db.collection('devices').doc(id).update({
       'isOccupied': true, 
       'mode': mode, 
-      'startTime': FieldValue.serverTimestamp()
+      'startTime': FieldValue.serverTimestamp(),
+      'isPaused': false,
+      'pausedDuration': 0,
+      'pauseStartTime': null,
     });
     return true;
   }
@@ -201,17 +232,51 @@ class DeviceProvider extends ChangeNotifier {
     await _db.collection('devices').doc(id).update({'mode': mode == 'single' ? 'multi' : 'single'});
   }
 
+  // --- دالة الإيقاف المؤقت / الاستئناف (الجديدة) ---
+  Future<void> togglePauseSession(String id, bool currentPausedState) async {
+    var deviceDoc = await _db.collection('devices').doc(id).get();
+    if (!deviceDoc.exists) return;
+
+    var data = deviceDoc.data() as Map<String, dynamic>;
+
+    if (!currentPausedState) {
+      // الانتقال إلى وضع "الإيقاف المؤقت"
+      await _db.collection('devices').doc(id).update({
+        'isPaused': true,
+        'pauseStartTime': FieldValue.serverTimestamp(),
+      });
+    } else {
+      // العودة إلى وضع "الاستئناف وتشغيل العداد"
+      Timestamp? pauseStart = data['pauseStartTime'];
+      int currentPausedDuration = data['pausedDuration'] ?? 0;
+
+      if (pauseStart != null) {
+        int additionalPausedSeconds = DateTime.now().difference(pauseStart.toDate()).inSeconds;
+        currentPausedDuration += additionalPausedSeconds;
+      }
+
+      await _db.collection('devices').doc(id).update({
+        'isPaused': false,
+        'pausedDuration': currentPausedDuration,
+        'pauseStartTime': null,
+      });
+    }
+  }
+
   Future<void> stopSession(String id, String name, String method, double cost) async {
     final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
     if (activeShiftQuery.docs.isEmpty) return;
 
     final batch = _db.batch();
     
-    // 1. إيقاف الجهاز وإرجاعه للحالة العادية
+    // 1. إيقاف الجهاز وتصفير الإيقاف المؤقت وإرجاعه للحالة العادية
     batch.update(_db.collection('devices').doc(id), {
       'isOccupied': false, 
       'startTime': null, 
-      'mode': 'single'
+      'mode': 'single',
+      'isPaused': false,
+      'pausedDuration': 0,
+      'pauseStartTime': null,
     });
 
     // 2. تحديث إيرادات الوردية النشطة
@@ -227,7 +292,7 @@ class DeviceProvider extends ChangeNotifier {
       revenueField: currentMethodRevenue + cost,
     });
 
-    // 3. تسجيل تفاصيل الجلسة في كولكشن history مع تسجيل من قام بالإغلاق
+    // 3. تسجيل تفاصيل الجلسة في كولكشن history
     DocumentReference historyRef = _db.collection('history').doc();
     batch.set(historyRef, {
       'deviceName': name,
@@ -235,7 +300,7 @@ class DeviceProvider extends ChangeNotifier {
       'paymentMethod': method,
       'timestamp': FieldValue.serverTimestamp(),
       'shiftId': currentShiftId,
-      'closedBy': _userRole, // <--- حفظ الدور (مدير أو موظف)
+      'closedBy': _userRole,
     });
 
     await batch.commit();
