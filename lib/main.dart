@@ -29,18 +29,30 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => DeviceProvider()),
       ],
-      child: MaterialApp(
-        title: 'Mango PS',
-        debugShowCheckedModeBanner: false,
-        theme: ThemeData(
-          primarySwatch: Colors.deepPurple,
-          useMaterial3: true,
-        ),
-        home: const HomeScreen(), // البداية من شاشة الأجهزة
-        routes: {
-          '/home': (context) => const HomeScreen(),
-          '/shift': (context) => const ShiftScreen(),
-          '/settings': (context) => const SettingsScreen(),
+      child: Consumer<DeviceProvider>(
+        builder: (context, provider, child) {
+          return MaterialApp(
+            title: 'Mango PS',
+            debugShowCheckedModeBanner: false,
+            // هنا السطر الذي قمت بذكره لتفعيل المود الداكن والفاتح
+            themeMode: provider.appMode == 'داكن (Dark)' ? ThemeMode.dark : ThemeMode.light,
+            theme: ThemeData(
+              brightness: Brightness.light,
+              primarySwatch: Colors.deepPurple,
+              useMaterial3: true,
+            ),
+            darkTheme: ThemeData(
+              brightness: Brightness.dark,
+              primarySwatch: Colors.deepPurple,
+              useMaterial3: true,
+            ),
+            home: const HomeScreen(),
+            routes: {
+              '/home': (context) => const HomeScreen(),
+              '/shift': (context) => const ShiftScreen(),
+              '/settings': (context) => const SettingsScreen(),
+            },
+          );
         },
       ),
     );
