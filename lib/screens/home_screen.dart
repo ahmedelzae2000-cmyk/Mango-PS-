@@ -1,3 +1,100 @@
+import 'dart:io';
+import 'dart:async';
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/device_provider.dart';
+import 'shift_screen.dart';
+import 'settings_screen.dart';
+import 'login_screen.dart';
+import 'expenses_screen.dart'; 
+import 'report_screen.dart';
+
+class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  int _selectedIndex = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = Provider.of<DeviceProvider>(context);
+    final bool isManager = provider.userRole == 'مدير';
+
+    List<Widget> pages = [
+      const DevicesPage(),
+      if (isManager) ...[
+        const ShiftScreen(),
+        const ExpensesScreen(),
+        const ReportScreen(),
+        const SettingsScreen(),
+      ],
+    ];
+
+    if (!isManager && _selectedIndex >= pages.length) {
+      _selectedIndex = 0;
+    }
+
+    DecorationImage? bgImage;
+    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
+      bgImage = DecorationImage(image: FileImage(File(provider.customImagePath!)), fit: BoxFit.cover);
+    } else if (provider.backgroundType == 'داكن أنيق') {
+      bgImage = const DecorationImage(image: AssetImage('assets/bg.jpg'), fit: BoxFit.cover);
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Manga PS (${provider.userRole})'),
+        elevation: 0,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'تسجيل الخروج',
+            onPressed: () {
+              provider.setUserRole('موظف');
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginScreen()),
+              );
+            },
+          ),
+        ],
+      ),
+      body: Stack(
+        children: [
+          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
+          Container(color: provider.appMode == 'داكن (Dark)' ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.1)),
+          SafeArea(
+            child: IndexedStack(
+              index: _selectedIndex,
+              children: pages,
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: isManager
+          ? BottomNavigationBar(
+              currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
+              selectedItemColor: Colors.deepPurple,
+              unselectedItemColor: Colors.grey,
+              type: BottomNavigationBarType.fixed,
+              onTap: (index) => setState(() => _selectedIndex = index),
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
+                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
+                BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
+                BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
+                BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+              ],
+            )
+          : null,
+    );
+  }
+}
+
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -30,7 +127,7 @@ class DevicesPage extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.78, // نسبة طول الكارت لتناسب التصميم الاحترافي
+                childAspectRatio: 0.78, // نسبة الطول لتناسب التصميم الاحترافي للكرت
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -151,7 +248,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF212121), // لون كرت داكن أنيق مطابق للصورة
+        color: const Color(0xFF212121), // كرت داكن أنيق مطابق للصور
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.green) : Colors.transparent,
@@ -163,7 +260,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // السطر الأول: اسم الجهاز وأيقونة الحذف للمدير
+          // 1. اسم الجهاز وأيقونة الحذف للمدير
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -198,7 +295,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ],
           ),
 
-          // نوع الجهاز (PS4 أو PS5) في المنتصف داخل إطار مخصص
+          // 2. نوع الجهاز (PS4 أو PS5) في المنتصف داخل إطار
           Center(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
@@ -213,7 +310,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ),
           ),
 
-          // العداد والمبلغ المالي
+          // 3. العداد والمبلغ المالي
           Center(
             child: Column(
               children: [
@@ -240,7 +337,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ),
           ),
 
-          // أزرار التبديل (زوجي / فردي)
+          // 4. أزرار التبديل (زوجي / فردي)
           Container(
             decoration: BoxDecoration(
               color: Colors.black26,
@@ -296,7 +393,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ),
           ),
 
-          // زر التشغيل أو الإيقاف الأخضر السفلي
+          // 5. زر التشغيل الأخضر أو الإيقاف
           SizedBox(
             width: double.infinity,
             height: 36,
@@ -338,13 +435,11 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('إنهاء جلسة: ${device.name}'),
+          title: Text('إدارة جلسة: ${device.name}'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('الوقت المنقضي: ${costController.text.isNotEmpty ? "" : ""}', style: const TextStyle(fontSize: 13, color: Colors.grey)),
-              const SizedBox(height: 10),
               TextField(
                 controller: costController,
                 keyboardType: TextInputType.number,
