@@ -1,7 +1,7 @@
-Import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import '../providers/device_provider.dart'; // تأكد أن مسار الاستيراد مطابق لمشروعك
+import '../providers/device_provider.dart';
 
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
@@ -28,7 +28,6 @@ class ShiftScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FirebaseFirestore db = FirebaseFirestore.instance;
-    // جلب صلاحية المستخدم لمعرفة هل هو مدير أم لا
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
 
@@ -40,7 +39,6 @@ class ShiftScreen extends StatelessWidget {
       ),
       body: Column(
         children: [
-          // زر بدء أو إنهاء الوردية الحالية
           StreamBuilder<QuerySnapshot>(
             stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
             builder: (context, snapshot) {
@@ -76,8 +74,6 @@ class ShiftScreen extends StatelessWidget {
               );
             },
           ),
-
-          // عرض تفاصيل الورديات مع زر الحذف للمدير فقط
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
@@ -128,7 +124,6 @@ class ShiftScreen extends StatelessWidget {
                                     Row(
                                       children: [
                                         Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 12)),
-                                        // زر حذف الوردية يظهر للمدير فقط
                                         if (isManager) ...[
                                           const SizedBox(width: 8),
                                           InkWell(
@@ -177,7 +172,6 @@ class ShiftScreen extends StatelessWidget {
               },
             ),
           ),
-
           const Divider(thickness: 2),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
@@ -186,8 +180,6 @@ class ShiftScreen extends StatelessWidget {
               child: Text('سجل الجلسات المنتهية:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.deepPurple)),
             ),
           ),
-
-          // عرض تفاصيل الجلسات مع زر الحذف الفردي والخصم التلقائي من الوردية النشطة للمدير فقط
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
@@ -209,7 +201,7 @@ class ShiftScreen extends StatelessWidget {
                     String deviceName = doc['deviceName'] ?? 'جهاز';
                     double cost = (doc['cost'] ?? 0.0).toDouble();
                     String paymentMethod = doc['paymentMethod'] ?? 'كاش';
-                    String closedBy = doc['closedBy'] ?? 'موظف'; // <--- قراءة اسم الشخص الذي أغلق الجلسة
+                    String closedBy = doc['closedBy'] ?? 'موظف';
 
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -220,9 +212,7 @@ class ShiftScreen extends StatelessWidget {
                           child: Icon(Icons.check, color: Colors.white, size: 16),
                         ),
                         title: Text(deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        // عرض طريقة الدفع والتكلفة ومن قام بإغلاق الجلسة
                         subtitle: Text('الدفع: $paymentMethod - التكلفة: $cost ج.م | بواسطة: $closedBy'),
-                        // زر حذف الجلسة يظهر للمدير فقط في الـ Trailing مع الخصم التلقائي
                         trailing: isManager
                             ? IconButton(
                                 icon: const Icon(Icons.delete, color: Colors.red, size: 20),
@@ -237,7 +227,6 @@ class ShiftScreen extends StatelessWidget {
                                         ElevatedButton(
                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
                                           onPressed: () async {
-                                            // 1. البحث عن الوردية النشطة حالياً لخصم المبلغ منها
                                             var activeShiftQuery = await db.collection('shifts').where('isActive', isEqualTo: true).get();
                                             
                                             if (activeShiftQuery.docs.isNotEmpty) {
@@ -258,7 +247,6 @@ class ShiftScreen extends StatelessWidget {
                                                 newVisa = (currentVisa - cost < 0) ? 0.0 : currentVisa - cost;
                                               }
 
-                                              // تحديث الوردية بالقيم الجديدة بعد الخصم
                                               await db.collection('shifts').doc(shiftDoc.id).update({
                                                 'totalRevenue': newTotal,
                                                 'cashRevenue': newCash,
@@ -266,13 +254,14 @@ class ShiftScreen extends StatelessWidget {
                                               });
                                             }
 
-                                            // 2. حذف الجلسة من سجل الـ history
                                             await db.collection('history').doc(historyId).delete();
                                             
-                                            Navigator.pop(ctx);
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(content: Text('تم حذف الجلسة وخصم قيمتها من الوردية بنجاح')),
-                                            );
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                            if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(
+                                                const SnackBar(content: Text('تم حذف الجلسة وخصم قيمتها من الوردية بنجاح')),
+                                              );
+                                            }
                                           },
                                           child: const Text('حذف وخصم'),
                                         ),
@@ -294,7 +283,6 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 
-  // دالة مساعدة لعرض رسالة تأكيد الحذف العامة
   void _showDeleteDialog(BuildContext context, String title, String content, VoidCallback onDelete) {
     showDialog(
       context: context,
@@ -316,3 +304,4 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 }
+ 
