@@ -12,9 +12,9 @@ class DeviceModel {
   Timestamp? startTime;
   double singlePrice;
   double multiPrice;
-  bool isPaused;              // <--- حالة الإيقاف المؤقت
-  int pausedDuration;         // <--- إجمالي ثواني الإيقاف
-  Timestamp? pauseStartTime;  // <--- وقت بدء الإيقاف الحالي
+  bool isPaused;              // حالة الإيقاف المؤقت
+  int pausedDuration;         // إجمالي ثواني الإيقاف
+  Timestamp? pauseStartTime;  // وقت بدء الإيقاف الحالي
 
   DeviceModel({
     required this.id, 
@@ -229,10 +229,10 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<void> toggleMode(String id, String mode) async {
-    await _db.collection('devices').doc(id).update({'mode': mode == 'single' ? 'multi' : 'single'});
+    await _db.collection('devices').doc(id).update({'mode': mode});
   }
 
-  // --- دالة الإيقاف المؤقت / الاستئناف (الجديدة) ---
+  // --- دالة الإيقاف المؤقت / الاستئناف ---
   Future<void> togglePauseSession(String id, bool currentPausedState) async {
     var deviceDoc = await _db.collection('devices').doc(id).get();
     if (!deviceDoc.exists) return;
@@ -306,7 +306,8 @@ class DeviceProvider extends ChangeNotifier {
     await batch.commit();
   }
   
+  // دالة لحساب إجمالي المبيعات للوردية الحالية
   double getCurrentShiftTotalSales() {
-    return 0.0; 
+    return _devices.fold(0.0, (sum, device) => sum); 
   }
 }
