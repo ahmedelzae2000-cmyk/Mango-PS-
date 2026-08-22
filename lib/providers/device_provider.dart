@@ -2,33 +2,36 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+// الموديلات
 class DeviceModel {
   String id;
   String name;
-  String type; // PS4, PS5
+  String type; 
   bool isOccupied;
-  String mode; // single, multi
+  String mode; 
   Timestamp? startTime;
   double singlePrice;
   double multiPrice;
 
-  DeviceModel({
-    required this.id,
-    required this.name,
-    required this.type,
-    this.isOccupied = false,
-    this.mode = 'single',
-    this.startTime,
-    required this.singlePrice,
-    required this.multiPrice,
-  });
+  DeviceModel({required this.id, required this.name, required this.type, this.isOccupied = false, this.mode = 'single', this.startTime, required this.singlePrice, required this.multiPrice});
+}
+
+class ExpenseModel {
+  String id;
+  String title;
+  double amount;
+  String type; // 'مصروف' أو 'سلفة'
+  Timestamp? date;
+  String shiftId;
+
+  ExpenseModel({required this.id, required this.title, required this.amount, required this.type, this.date, required this.shiftId});
 }
 
 class DeviceProvider extends ChangeNotifier {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   List<DeviceModel> _devices = [];
+  List<ExpenseModel> _expenses = [];
 
-  // إعدادات التطبيق
   String _appMode = 'فاتح';
   String _backgroundType = 'افتراضي (بنفسجي)';
   String? _customImagePath;
@@ -36,13 +39,13 @@ class DeviceProvider extends ChangeNotifier {
   String get appMode => _appMode;
   String get backgroundType => _backgroundType;
   String? get customImagePath => _customImagePath;
-  ThemeMode get themeMode => _appMode == 'داكن' ? ThemeMode.dark : ThemeMode.light;
-
   List<DeviceModel> get devices => _devices;
+  List<ExpenseModel> get expenses => _expenses;
 
   DeviceProvider() {
     _loadSettings();
     _initDeviceListener();
+    _initExpenseListener();
   }
 
   void _initDeviceListener() {
@@ -64,7 +67,49 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // --- إدارة الإعدادات ---
+  void _initExpenseListener() {
+    _db.collection('expenses').snapshots().listen((snapshot) {
+      _expenses = snapshot.docs.map((doc) {
+        var data = doc.data();
+        return ExpenseModel(
+          id: doc.id,
+          title: data['title'] ?? '',
+          amount: (data['amount'] ?? 0.0).toDouble(),
+          type: data['type'] ?? 'مصروف',
+          date: data['date'],
+          shiftId: data['shiftId'] ?? '',
+        );
+      }).toList();
+      notifyListeners();
+    });
+  }
+
+  // --- دوال المصاريف والسلف ---
+
+  Future<void> addExpenseOrAdvance(String title, double amount, String type) async {
+    final activeShiftQuery = await _db.collection('shifts')
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+
+    if (activeShiftQuery.docs.isEmpty) return;
+
+    await _db.collection('expenses').add({
+      'title': title,
+      'amount': amount,
+      'type': type,
+      'date': FieldValue.serverTimestamp(),
+      'shiftId': activeShiftQuery.docs.first.id,
+    });
+  }
+
+  double getExpensesTotalByType(String type) {
+    return _expenses
+        .where((e) => e.type == type)
+        .fold(0.0, (sum, item) => sum + item.amount);
+  }
+
+  // --- دوال الإعدادات ---
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -77,101 +122,46 @@ class DeviceProvider extends ChangeNotifier {
   Future<void> updateSettings(String mode, String bgType, {String? imagePath}) async {
     _appMode = mode;
     _backgroundType = bgType;
-    if (imagePath != null) {
-      _customImagePath = imagePath;
-    }
+    if (imagePath != null) _customImagePath = imagePath;
     
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('app_mode', mode);
     await prefs.setString('app_bg', bgType);
-    if (imagePath != null) {
-      await prefs.setString('custom_image_path', imagePath);
-    }
-    
+    if (imagePath != null) await prefs.setString('custom_image_path', imagePath);
     notifyListeners();
   }
 
-  // --- دوال الأجهزة ---
+  // --- دوال الأجهزة والورديات ---
 
-  Future<void> addDevice(String name, String type, double singlePrice, double multiPrice) async {
-    await _db.collection('devices').add({
-      'name': name,
-      'type': type,
-      'isOccupied': false,
-      'mode': 'single',
-      'startTime': null,
-      'singlePrice': singlePrice,
-      'multiPrice': multiPrice,
-    });
+  Future<void> addDevice(String name, String type, double s, double m) async {
+    await _db.collection('devices').add({'name': name, 'type': type, 'isOccupied': false, 'mode': 'single', 'singlePrice': s, 'multiPrice': m});
   }
 
-  Future<void> startSession(String deviceId, String mode) async {
-    await _db.collection('devices').doc(deviceId).update({
-      'isOccupied': true,
-      'mode': mode,
-      'startTime': FieldValue.serverTimestamp(),
-    });
+  Future<void> startSession(String id, String mode) async {
+    await _db.collection('devices').doc(id).update({'isOccupied': true, 'mode': mode, 'startTime': FieldValue.serverTimestamp()});
   }
 
-  Future<void> toggleMode(String deviceId, String currentMode) async {
-    String newMode = currentMode == 'single' ? 'multi' : 'single';
-    await _db.collection('devices').doc(deviceId).update({'mode': newMode});
+  Future<void> toggleMode(String id, String mode) async {
+    await _db.collection('devices').doc(id).update({'mode': mode == 'single' ? 'multi' : 'single'});
   }
 
-  Future<void> stopSession(String deviceId, String deviceName, String paymentMethod, double finalCost) async {
+  Future<void> stopSession(String id, String name, String method, double cost) async {
     final batch = _db.batch();
+    batch.update(_db.collection('devices').doc(id), {'isOccupied': false, 'startTime': null, 'mode': 'single'});
 
-    // 1. تحديث حالة الجهاز
-    final deviceRef = _db.collection('devices').doc(deviceId);
-    batch.update(deviceRef, {
-      'isOccupied': false,
-      'startTime': null,
-      'mode': 'single',
-    });
-
-    // 2. البحث عن الوردية النشطة
-    final activeShiftQuery = await _db.collection('shifts')
-        .where('isActive', isEqualTo: true)
-        .limit(1)
-        .get();
-    
+    final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
     if (activeShiftQuery.docs.isNotEmpty) {
-      final shiftDoc = activeShiftQuery.docs.first;
-      final data = shiftDoc.data();
-      
-      double currentTotal = (data['totalRevenue'] ?? 0.0).toDouble();
-      double currentCash = (data['cashRevenue'] ?? 0.0).toDouble();
-      double currentVisa = (data['visaRevenue'] ?? 0.0).toDouble();
-
-      currentTotal += finalCost;
-      if (paymentMethod == 'كاش') {
-        currentCash += finalCost;
-      } else {
-        currentVisa += finalCost;
-      }
-
-      batch.update(shiftDoc.reference, {
-        'totalRevenue': currentTotal,
-        'cashRevenue': currentCash,
-        'visaRevenue': currentVisa,
+      final doc = activeShiftQuery.docs.first;
+      batch.update(doc.reference, {
+        'totalRevenue': (doc.data()['totalRevenue'] ?? 0.0) + cost,
+        method == 'كاش' ? 'cashRevenue' : 'visaRevenue': (doc.data()[method == 'كاش' ? 'cashRevenue' : 'visaRevenue'] ?? 0.0) + cost
       });
     }
-
-    // 3. إضافة الجلسة إلى السجل
-    final historyRef = _db.collection('history').doc();
-    batch.set(historyRef, {
-      'deviceName': deviceName,
-      'cost': finalCost,
-      'paymentMethod': paymentMethod,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
-
     await batch.commit();
-    notifyListeners();
   }
   
-  // دالة لحذف الجهاز
-  Future<void> deleteDevice(String deviceId) async {
-    await _db.collection('devices').doc(deviceId).delete();
+  double getCurrentShiftTotalSales() {
+    // هذه دالة تقديرية، يفضل ربطها بالـ Firestore مباشرة في شاشة التقرير
+    return 0.0; 
   }
 }
