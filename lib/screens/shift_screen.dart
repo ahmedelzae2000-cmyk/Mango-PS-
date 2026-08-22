@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import '../providers/device_provider.dart'; // تأكد أن مسار الاستيراد مطابق لمشروعك
 
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
@@ -26,6 +28,9 @@ class ShiftScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final FirebaseFirestore db = FirebaseFirestore.instance;
+    // جلب صلاحية المستخدم لمعرفة هل هو مدير أم لا
+    final provider = Provider.of<DeviceProvider>(context);
+    final bool isManager = provider.userRole == 'مدير';
 
     return Scaffold(
       appBar: AppBar(
@@ -72,7 +77,7 @@ class ShiftScreen extends StatelessWidget {
             },
           ),
 
-          // عرض تفاصيل الورديات مع حساب المصاريف والسلف تلقائياً في الخلفية
+          // عرض تفاصيل الورديات مع زر الحذف للمدير فقط
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
@@ -96,7 +101,6 @@ class ShiftScreen extends StatelessWidget {
                     double cash = (shiftData['cashRevenue'] ?? 0.0).toDouble();
                     double visa = (shiftData['visaRevenue'] ?? 0.0).toDouble();
 
-                    // استخدام Stream فرعي لحساب المصاريف الخاصة بهذه الوردية لحظياً
                     return StreamBuilder<QuerySnapshot>(
                       stream: db.collection('expenses').where('shiftId', isEqualTo: shiftId).snapshots(),
                       builder: (context, expenseSnapshot) {
@@ -108,7 +112,6 @@ class ShiftScreen extends StatelessWidget {
                           }
                         }
 
-                        // حساب الصافي (المبيعات - المصاريف)
                         double netTotal = total - shiftExpenses;
 
                         return Card(
@@ -122,7 +125,28 @@ class ShiftScreen extends StatelessWidget {
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text('وردية رقم ${shifts.length - index}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                    Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 12)),
+                                    Row(
+                                      children: [
+                                        Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 12)),
+                                        // زر حذف الوردية يظهر للمدير فقط
+                                        if (isManager) ...[
+                                          const SizedBox(width: 8),
+                                          InkWell(
+                                            onTap: () {
+                                              _showDeleteDialog(
+                                                context, 
+                                                'حذف هذه الوردية', 
+                                                'هل أنت متأكد من حذف هذه الوردية نهائياً؟', 
+                                                () async {
+                                                  await db.collection('shifts').doc(shiftId).delete();
+                                                }
+                                              );
+                                            },
+                                            child: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                          ),
+                                        ],
+                                      ],
+                                    ),
                                   ],
                                 ),
                                 const Divider(height: 8),
@@ -163,7 +187,7 @@ class ShiftScreen extends StatelessWidget {
             ),
           ),
 
-          // عرض تفاصيل كل جلسة انتهت
+          // عرض تفاصيل الجلسات مع زر الحذف الفردي للمدير فقط
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
@@ -179,7 +203,9 @@ class ShiftScreen extends StatelessWidget {
                 return ListView.builder(
                   itemCount: historyDocs.length,
                   itemBuilder: (context, index) {
-                    final doc = historyDocs[index].data() as Map<String, dynamic>;
+                    final historyDoc = historyDocs[index];
+                    final doc = historyDoc.data() as Map<String, dynamic>;
+                    String historyId = historyDoc.id;
                     String deviceName = doc['deviceName'] ?? 'جهاز';
                     double cost = (doc['cost'] ?? 0.0).toDouble();
                     String paymentMethod = doc['paymentMethod'] ?? 'كاش';
@@ -193,8 +219,23 @@ class ShiftScreen extends StatelessWidget {
                           child: Icon(Icons.check, color: Colors.white, size: 16),
                         ),
                         title: Text(deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('طريقة الدفع: $paymentMethod'),
-                        trailing: Text('$cost ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14)),
+                        subtitle: Text('طريقة الدفع: $paymentMethod - التكلفة: $cost ج.م'),
+                        // زر حذف الجلسة يظهر للمدير فقط في الـ Trailing
+                        trailing: isManager
+                            ? IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                onPressed: () {
+                                  _showDeleteDialog(
+                                    context, 
+                                    'حذف هذه الجلسة', 
+                                    'هل أنت متأكد من حذف هذه الجلسة من السجل؟', 
+                                    () async {
+                                      await db.collection('history').doc(historyId).delete();
+                                    }
+                                  );
+                                },
+                              )
+                            : Text('$cost ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14)),
                       ),
                     );
                   },
@@ -206,5 +247,26 @@ class ShiftScreen extends StatelessWidget {
       ),
     );
   }
+
+  // دالة مساعدة لعرض رسالة تأكيد الحذف
+  void _showDeleteDialog(BuildContext context, String title, String content, VoidCallback onDelete) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () {
+              onDelete();
+              Navigator.pop(ctx);
+            },
+            child: const Text('حذف'),
+          ),
+        ],
+      ),
+    );
+  }
 }
- 
