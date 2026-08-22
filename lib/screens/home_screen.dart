@@ -168,7 +168,9 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   @override
   Widget build(BuildContext context) {
     final device = widget.device;
-    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    // تم التعديل هنا لقراءة المود من الـ Provider مباشرة
+    final provider = Provider.of<DeviceProvider>(context);
+    final bool isDark = provider.appMode == 'داكن (Dark)';
     
     double activePrice = device.mode == 'single' ? device.singlePrice : device.multiPrice;
     Duration elapsed = Duration.zero;
