@@ -35,10 +35,14 @@ class DeviceProvider extends ChangeNotifier {
   String _appMode = 'فاتح';
   String _backgroundType = 'افتراضي (بنفسجي)';
   String? _customImagePath;
+  
+  // صلاحية المستخدم الحالية (افتراضياً موظف)
+  String _userRole = 'موظف';
 
   String get appMode => _appMode;
   String get backgroundType => _backgroundType;
   String? get customImagePath => _customImagePath;
+  String get userRole => _userRole;
   List<DeviceModel> get devices => _devices;
   List<ExpenseModel> get expenses => _expenses;
 
@@ -87,6 +91,9 @@ class DeviceProvider extends ChangeNotifier {
   // --- دوال المصاريف والسلف ---
 
   Future<void> addExpenseOrAdvance(String title, double amount, String type) async {
+    // التأكد أن المستخدم مدير قبل إضافة مصروف أو سلفة
+    if (_userRole != 'مدير') return;
+
     final activeShiftQuery = await _db.collection('shifts')
         .where('isActive', isEqualTo: true)
         .limit(1)
@@ -103,8 +110,9 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // الدالة الجديدة للحذف
+  // دالة حذف مصروف أو سلفة من قاعدة البيانات
   Future<void> deleteExpenseOrAdvance(String id) async {
+    if (_userRole != 'مدير') return; // حماية إضافية للحذف
     await _db.collection('expenses').doc(id).delete();
   }
 
@@ -114,13 +122,14 @@ class DeviceProvider extends ChangeNotifier {
         .fold(0.0, (sum, item) => sum + item.amount);
   }
 
-  // --- دوال الإعدادات ---
+  // --- دوال الإعدادات وصلاحيات المستخدم ---
 
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     _appMode = prefs.getString('app_mode') ?? 'فاتح';
     _backgroundType = prefs.getString('app_bg') ?? 'افتراضي (بنفسجي)';
     _customImagePath = prefs.getString('custom_image_path');
+    _userRole = prefs.getString('user_role') ?? 'موظف';
     notifyListeners();
   }
 
@@ -133,6 +142,14 @@ class DeviceProvider extends ChangeNotifier {
     await prefs.setString('app_mode', mode);
     await prefs.setString('app_bg', bgType);
     if (imagePath != null) await prefs.setString('custom_image_path', imagePath);
+    notifyListeners();
+  }
+
+  // دالة لتغيير وحفظ دور المستخدم (مدير / موظف)
+  Future<void> setUserRole(String role) async {
+    _userRole = role;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_role', role);
     notifyListeners();
   }
 
