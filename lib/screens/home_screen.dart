@@ -5,9 +5,6 @@ import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
 import 'shift_screen.dart';
 import 'settings_screen.dart';
-// استبدل المسار ده بشاشة المصاريف والتقارير عندك لو حابب تربطهم هنا
-// import 'expenses_screen.dart';
-// import 'report_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,20 +37,17 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: Text('Manga PS (${provider.userRole})'),
         actions: [
-          // زر تبديل الصلاحية أو تسجيل دخول المدير
           IconButton(
             icon: Icon(provider.userRole == 'مدير' ? Icons.admin_panel_settings : Icons.lock, 
                 color: provider.userRole == 'مدير' ? Colors.amber : Colors.white),
             tooltip: provider.userRole == 'مدير' ? 'أنت مسجل كمدير (انقر لتسجيل الخروج)' : 'تسجيل دخول المدير',
             onPressed: () {
               if (provider.userRole == 'مدير') {
-                // لو هو مدير، نرجعه موظف تاني
                 provider.setUserRole('موظف');
                 ScaffoldMessenger.of(context).showSnackBar(
-                  constSnackBar(content: const Text('تم التحويل لوضع الموظف بنجاح')),
+                  const SnackBar(content: Text('تم التحويل لوضع الموظف بنجاح')),
                 );
               } else {
-                // لو موظف، نطلب باسورد المدير
                 _showAdminLoginDialog(context);
               }
             },
@@ -81,7 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // نافذة إدخال كلمة سر المدير
   void _showAdminLoginDialog(BuildContext context) {
     final passwordController = TextEditingController();
     showDialog(
@@ -98,8 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('إلغاء')),
           ElevatedButton(
             onPressed: () {
-              // كلمة السر الافتراضية للمدير (يمكنك تغييرها هنا)
-              if (passwordController.text == '1995') {
+              if (passwordController.text == '1234') {
                 Provider.of<DeviceProvider>(context, listen: false).setUserRole('مدير');
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -155,7 +147,7 @@ class DevicesPage extends StatelessWidget {
               onPressed: () => _showAddDeviceDialog(context),
               child: const Icon(Icons.add, color: Colors.white),
             )
-          : null, // إخفاء زر إضافة الأجهزة عن الموظف (اختياري)
+          : null,
     );
   }
 
@@ -392,7 +384,8 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ),
             ElevatedButton(
               onPressed: () async {
-                double finalAmount = double.tryParse(costController.text) >= 0 ? double.parse(costController.text) : calculatedCost;
+                double parsedVal = double.tryParse(costController.text) ?? calculatedCost;
+                double finalAmount = parsedVal >= 0 ? parsedVal : calculatedCost;
                 await Provider.of<DeviceProvider>(context, listen: false)
                     .stopSession(device.id, device.name, paymentMethod, finalAmount);
                 if (ctx.mounted) Navigator.pop(ctx);
@@ -406,4 +399,3 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 }
- 
