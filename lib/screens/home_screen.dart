@@ -1,105 +1,3 @@
-import 'dart:io';
-import 'dart:async';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/device_provider.dart';
-import 'shift_screen.dart';
-import 'settings_screen.dart';
-import 'login_screen.dart';
-// تأكد من أن أسماء ملفات الشاشات التالية مطابقة لمشروعك، أو قم بإنشائها إذا لم تكن موجودة
-import 'expenses_screen.dart'; 
-import 'reports_screen.dart';
-
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
-
-  @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  int _selectedIndex = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final provider = Provider.of<DeviceProvider>(context);
-    final bool isManager = provider.userRole == 'مدير';
-
-    // تحديد الشاشات المتاحة بناءً على الصلاحية
-    // الموظف: [الأجهزة، الورديات] (طولها 2)
-    // المدير: [الأجهزة، الورديات، المصاريف، التقارير، الإعدادات] (طولها 5)
-    List<Widget> pages = [
-      const DevicesPage(),
-      const ShiftScreen(),
-      if (isManager) ...[
-        const ExpensesScreen(),
-        const ReportsScreen(),
-        const SettingsScreen(),
-      ],
-    ];
-
-    // إذا كان الموظف في تبويب غير مسموح له، نرجعه للصفحة الرئيسية تلقائياً
-    if (!isManager && _selectedIndex > 1) {
-      _selectedIndex = 0;
-    }
-
-    DecorationImage? bgImage;
-    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
-      bgImage = DecorationImage(image: FileImage(File(provider.customImagePath!)), fit: BoxFit.cover);
-    } else if (provider.backgroundType == 'داكن أنيق') {
-      bgImage = const DecorationImage(image: AssetImage('assets/bg.jpg'), fit: BoxFit.cover);
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Manga PS (${provider.userRole})'),
-        elevation: 0,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () {
-              provider.setUserRole('موظف');
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
-          Container(color: provider.appMode == 'داكن (Dark)' ? Colors.black.withOpacity(0.6) : Colors.white.withOpacity(0.1)),
-          SafeArea(
-            child: IndexedStack(
-              index: _selectedIndex,
-              children: pages,
-            ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed, // هام لكي تظهر جميع الأيقونات بوضوح بدون أخطاء مساحة
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
-          const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
-          if (isManager) ...[
-            const BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
-            const BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-            const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-          ],
-        ],
-      ),
-    );
-  }
-}
-
 class DevicesPage extends StatelessWidget {
   const DevicesPage({super.key});
 
@@ -111,19 +9,28 @@ class DevicesPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: const Text('إدارة الأجهزة (Manga PS)'),
+        title: const Text(
+          'صالة الأجهزة',
+          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
+        ),
         elevation: 0,
         automaticallyImplyLeading: false,
+        backgroundColor: Colors.transparent,
       ),
       body: provider.devices.isEmpty
-          ? const Center(child: Text('لا يوجد أجهزة، قم بإضافة جهاز جديد.'))
+          ? const Center(
+              child: Text(
+                'لا يوجد أجهزة مضافة حالياً',
+                style: TextStyle(color: Colors.white70, fontSize: 16),
+              ),
+            )
           : GridView.builder(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 0.85,
+                crossAxisCount: 2, // جهازين فقط في كل صف
+                crossAxisSpacing: 14,
+                mainAxisSpacing: 14,
+                childAspectRatio: 1.4, // كارت عريض ومستطيل بشكل شابابي وأنيق
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -132,10 +39,11 @@ class DevicesPage extends StatelessWidget {
               },
             ),
       floatingActionButton: isManager
-          ? FloatingActionButton(
+          ? FloatingActionButton.extended(
               backgroundColor: Colors.deepPurple,
+              icon: const Icon(Icons.add, color: Colors.white),
+              label: const Text('إضافة جهاز', style: TextStyle(color: Colors.white)),
               onPressed: () => _showAddDeviceDialog(context),
-              child: const Icon(Icons.add, color: Colors.white),
             )
           : null,
     );
@@ -150,7 +58,7 @@ class DevicesPage extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('إضافة جهاز'),
+        title: const Text('إضافة جهاز جديد'),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -231,6 +139,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     String formattedTime = '${elapsed.inHours.toString().padLeft(2, '0')}:${(elapsed.inMinutes % 60).toString().padLeft(2, '0')}';
 
     return InkWell(
+      borderRadius: BorderRadius.circular(16),
       onTap: () {
         if (!device.isOccupied) {
           _showStartDialog(context, device);
@@ -238,72 +147,102 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           _showFinishDialog(context, device, currentCost);
         }
       },
-      child: Card(
-        elevation: 4,
-        color: isDark ? Colors.grey.shade900 : Colors.white,
-        shape: RoundedRectangleBorder(
+      child: Container(
+        decoration: BoxDecoration(
+          color: isDark ? Colors.grey.shade900.withOpacity(0.85) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: device.isOccupied ? Colors.red.shade400 : Colors.green.shade400,
+          border: Border.all(
+            color: device.isOccupied ? Colors.redAccent.withOpacity(0.8) : Colors.greenAccent.withOpacity(0.8),
             width: 2,
           ),
+          boxShadow: [
+            BoxShadow(
+              color: device.isOccupied ? Colors.red.withOpacity(0.15) : Colors.green.withOpacity(0.15),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: device.type == 'PS5' ? Colors.black : Colors.deepPurple,
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                    child: Text(device.type, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+        padding: const EdgeInsets.all(12.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            // الهيدر: نوع الجهاز (PS4/PS5) مع مؤشر الحالة بطريقة عصرية
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: device.type == 'PS5' ? Colors.black : Colors.deepPurple,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  Text(
-                    device.isOccupied ? (device.mode == 'single' ? 'سنجل' : 'ملتي') : 'متاح',
-                    style: TextStyle(
-                      color: device.isOccupied ? Colors.red.shade400 : Colors.green.shade400,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 11,
-                    ),
+                  child: Text(
+                    device.type,
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
-                ],
-              ),
-              const Spacer(),
-              Text(
+                ),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      device.isOccupied ? (device.mode == 'single' ? 'سنجل' : 'ملتي') : 'متاح',
+                      style: TextStyle(
+                        color: device.isOccupied ? Colors.redAccent : Colors.greenAccent,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            
+            // اسم الجهاز في المنتصف بخط واضح
+            Center(
+              child: Text(
                 device.name,
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 18,
                   fontWeight: FontWeight.bold,
                   color: isDark ? Colors.white : Colors.black87,
                 ),
-                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 6),
-              if (device.isOccupied) ...[
-                Text(
-                  formattedTime,
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.deepPurple),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${currentCost.toStringAsFixed(1)} ج.م',
-                  style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.green),
-                ),
-              ] else ...[
-                const Text(
-                  'انقر للبدء',
-                  style: TextStyle(color: Colors.grey, fontSize: 11),
-                ),
-              ],
-              const Spacer(),
-            ],
-          ),
+            ),
+
+            // الفوتر: الوقت والمبلغ لو مشغول، أو عبارة انقر للبدء
+            device.isOccupied
+                ? Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        formattedTime,
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.amberAccent),
+                      ),
+                      Text(
+                        '${currentCost.toStringAsFixed(1)} ج.م',
+                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.greenAccent),
+                      ),
+                    ],
+                  )
+                : const Center(
+                    child: Text(
+                      'انقر لبدء الجلسة الإضافية',
+                      style: TextStyle(color: Colors.grey, fontSize: 11),
+                    ),
+                  ),
+          ],
         ),
       ),
     );
@@ -367,6 +306,8 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           actions: [
             TextButton(
               onPressed: () {
+                Provider.of<DeviceProvider>(context, layout: false) // ignore: invalid_use_of_visible_for_testing_member
+                ;
                 Provider.of<DeviceProvider>(context, listen: false).toggleMode(device.id, device.mode);
                 Navigator.pop(ctx);
               },
