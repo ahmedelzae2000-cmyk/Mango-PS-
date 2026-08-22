@@ -169,16 +169,42 @@ class DeviceProvider extends ChangeNotifier {
 
   Future<void> stopSession(String id, String name, String method, double cost) async {
     final batch = _db.batch();
-    batch.update(_db.collection('devices').doc(id), {'isOccupied': false, 'startTime': null, 'mode': 'single'});
+    
+    // 1. إيقاف الجهاز وإرجاعه للحالة العادية
+    batch.update(_db.collection('devices').doc(id), {
+      'isOccupied': false, 
+      'startTime': null, 
+      'mode': 'single'
+    });
 
+    // 2. البحث عن الوردية النشطة لتحديث الإيرادات وربط الجلسة بها
     final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
+    String currentShiftId = '';
+
     if (activeShiftQuery.docs.isNotEmpty) {
       final doc = activeShiftQuery.docs.first;
+      currentShiftId = doc.id;
+      
+      String revenueField = method == 'كاش' ? 'cashRevenue' : 'visaRevenue';
+      double currentTotal = (doc.data()['totalRevenue'] ?? 0.0).toDouble();
+      double currentMethodRevenue = (doc.data()[revenueField] ?? 0.0).toDouble();
+
       batch.update(doc.reference, {
-        'totalRevenue': (doc.data()['totalRevenue'] ?? 0.0) + cost,
-        method == 'كاش' ? 'cashRevenue' : 'visaRevenue': (doc.data()[method == 'كاش' ? 'cashRevenue' : 'visaRevenue'] ?? 0.0) + cost
+        'totalRevenue': currentTotal + cost,
+        revenueField: currentMethodRevenue + cost,
       });
     }
+
+    // 3. تسجيل تفاصيل الجلسة في كولكشن history لتظهر في التقرير اليومي
+    DocumentReference historyRef = _db.collection('history').doc();
+    batch.set(historyRef, {
+      'deviceName': name,
+      'cost': cost,
+      'paymentMethod': method,
+      'timestamp': FieldValue.serverTimestamp(),
+      'shiftId': currentShiftId,
+    });
+
     await batch.commit();
   }
   
