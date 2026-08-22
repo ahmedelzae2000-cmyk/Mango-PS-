@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+Import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../providers/device_provider.dart'; // تأكد أن مسار الاستيراد مطابق لمشروعك
@@ -209,6 +209,7 @@ class ShiftScreen extends StatelessWidget {
                     String deviceName = doc['deviceName'] ?? 'جهاز';
                     double cost = (doc['cost'] ?? 0.0).toDouble();
                     String paymentMethod = doc['paymentMethod'] ?? 'كاش';
+                    String closedBy = doc['closedBy'] ?? 'موظف'; // <--- قراءة اسم الشخص الذي أغلق الجلسة
 
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -219,7 +220,8 @@ class ShiftScreen extends StatelessWidget {
                           child: Icon(Icons.check, color: Colors.white, size: 16),
                         ),
                         title: Text(deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('طريقة الدفع: $paymentMethod - التكلفة: $cost ج.م'),
+                        // عرض طريقة الدفع والتكلفة ومن قام بإغلاق الجلسة
+                        subtitle: Text('الدفع: $paymentMethod - التكلفة: $cost ج.م | بواسطة: $closedBy'),
                         // زر حذف الجلسة يظهر للمدير فقط في الـ Trailing مع الخصم التلقائي
                         trailing: isManager
                             ? IconButton(
@@ -314,4 +316,3 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 }
- 
