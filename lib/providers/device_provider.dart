@@ -91,7 +91,6 @@ class DeviceProvider extends ChangeNotifier {
   // --- دوال المصاريف والسلف ---
 
   Future<void> addExpenseOrAdvance(String title, double amount, String type) async {
-    // التأكد أن المستخدم مدير قبل إضافة مصروف أو سلفة
     if (_userRole != 'مدير') return;
 
     final activeShiftQuery = await _db.collection('shifts')
@@ -110,9 +109,8 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
-  // دالة حذف مصروف أو سلفة من قاعدة البيانات
   Future<void> deleteExpenseOrAdvance(String id) async {
-    if (_userRole != 'مدير') return; // حماية إضافية للحذف
+    if (_userRole != 'مدير') return;
     await _db.collection('expenses').doc(id).delete();
   }
 
@@ -145,7 +143,6 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // دالة لتغيير وحفظ دور المستخدم (مدير / موظف)
   Future<void> setUserRole(String role) async {
     _userRole = role;
     final prefs = await SharedPreferences.getInstance();
@@ -153,14 +150,55 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // --- دوال الأجهزة والورديات ---
+  // --- دوال الأجهزة والورديات والجلسات (مع الشروط الجديدة) ---
 
   Future<void> addDevice(String name, String type, double s, double m) async {
+    if (_userRole != 'مدير') return; // إضافة الجهاز للمدير فقط
     await _db.collection('devices').add({'name': name, 'type': type, 'isOccupied': false, 'mode': 'single', 'singlePrice': s, 'multiPrice': m});
   }
 
-  Future<void> startSession(String id, String mode) async {
-    await _db.collection('devices').doc(id).update({'isOccupied': true, 'mode': mode, 'startTime': FieldValue.serverTimestamp()});
+  // دالة حذف جهاز (للمدير فقط)
+  Future<void> deleteDevice(String id) async {
+    if (_userRole != 'مدير') return;
+    await _db.collection('devices').doc(id).delete();
+  }
+
+  // دالة مسح الورديات والجلسات القديمة (للمدير فقط)
+  Future<void> clearHistoryAndShifts() async {
+    if (_userRole != 'مدير') return;
+
+    var shifts = await _db.collection('shifts').get();
+    for (var doc in shifts.docs) {
+      await doc.reference.delete();
+    }
+
+    var history = await _db.collection('history').get();
+    for (var doc in history.docs) {
+      await doc.reference.delete();
+    }
+    notifyListeners();
+  }
+
+  // التأكد من وجود وردية نشطة
+  Future<bool> _hasActiveShift() async {
+    final activeShiftQuery = await _db.collection('shifts')
+        .where('isActive', isEqualTo: true)
+        .limit(1)
+        .get();
+    return activeShiftQuery.docs.isNotEmpty;
+  }
+
+  Future<bool> startSession(String id, String mode) async {
+    // شرط: الجلسات لا تعمل إلا لو فيه وردية مفتوحة
+    bool shiftActive = await _hasActiveShift();
+    if (!shiftActive) return false;
+
+    await _db.collection('devices').doc(id).update({
+      'isOccupied': true, 
+      'mode': mode, 
+      'startTime': FieldValue.serverTimestamp()
+    });
+    return true;
   }
 
   Future<void> toggleMode(String id, String mode) async {
@@ -168,6 +206,10 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<void> stopSession(String id, String name, String method, double cost) async {
+    // التحقق من وجود وردية نشطة قبل الإنهاء
+    final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
+    if (activeShiftQuery.docs.isEmpty) return;
+
     final batch = _db.batch();
     
     // 1. إيقاف الجهاز وإرجاعه للحالة العادية
@@ -177,25 +219,20 @@ class DeviceProvider extends ChangeNotifier {
       'mode': 'single'
     });
 
-    // 2. البحث عن الوردية النشطة لتحديث الإيرادات وربط الجلسة بها
-    final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
-    String currentShiftId = '';
+    // 2. تحديث إيرادات الوردية النشطة
+    final doc = activeShiftQuery.docs.first;
+    String currentShiftId = doc.id;
+    
+    String revenueField = method == 'كاش' ? 'cashRevenue' : 'visaRevenue';
+    double currentTotal = (doc.data()['totalRevenue'] ?? 0.0).toDouble();
+    double currentMethodRevenue = (doc.data()[revenueField] ?? 0.0).toDouble();
 
-    if (activeShiftQuery.docs.isNotEmpty) {
-      final doc = activeShiftQuery.docs.first;
-      currentShiftId = doc.id;
-      
-      String revenueField = method == 'كاش' ? 'cashRevenue' : 'visaRevenue';
-      double currentTotal = (doc.data()['totalRevenue'] ?? 0.0).toDouble();
-      double currentMethodRevenue = (doc.data()[revenueField] ?? 0.0).toDouble();
+    batch.update(doc.reference, {
+      'totalRevenue': currentTotal + cost,
+      revenueField: currentMethodRevenue + cost,
+    });
 
-      batch.update(doc.reference, {
-        'totalRevenue': currentTotal + cost,
-        revenueField: currentMethodRevenue + cost,
-      });
-    }
-
-    // 3. تسجيل تفاصيل الجلسة في كولكشن history لتظهر في التقرير اليومي
+    // 3. تسجيل تفاصيل الجلسة في كولكشن history
     DocumentReference historyRef = _db.collection('history').doc();
     batch.set(historyRef, {
       'deviceName': name,
