@@ -127,7 +127,7 @@ class DevicesPage extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.78, // نسبة الطول لتناسب التصميم الاحترافي للكرت
+                childAspectRatio: 0.78,
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -246,27 +246,37 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     String formattedTime = '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
+    // ألوان الإطار المتوهج حسب حالة الجهاز
+    Color borderColor = device.isOccupied 
+        ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent) 
+        : Colors.grey.shade800;
+
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF212121), // كرت داكن أنيق مطابق للصور
+        color: const Color(0xFF1E1E1E),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: device.isOccupied ? (device.isPaused ? Colors.orange : Colors.green) : Colors.transparent,
-          width: 1.5,
-        ),
+        border: Border.all(color: borderColor, width: 1.8),
+        boxShadow: [
+          if (device.isOccupied)
+            BoxShadow(
+              color: borderColor.withOpacity(0.3),
+              blurRadius: 6,
+              spreadRadius: 1,
+            ),
+        ],
       ),
-      padding: const EdgeInsets.all(12.0),
+      padding: const EdgeInsets.all(10.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 1. اسم الجهاز وأيقونة الحذف للمدير
+          // 1. اسم الجهاز وأيقونة الحذف
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 device.name,
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
               ),
               if (isManager)
                 InkWell(
@@ -290,22 +300,23 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                       ),
                     );
                   },
-                  child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 20),
+                  child: const Icon(Icons.delete_outline, color: Colors.redAccent, size: 18),
                 ),
             ],
           ),
 
-          // 2. نوع الجهاز (PS4 أو PS5) في المنتصف داخل إطار
+          // 2. نوع الجهاز (PS4 أو PS5) في المنتصف
           Center(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 3),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey.shade600),
+                border: Border.all(color: Colors.grey.shade700),
                 borderRadius: BorderRadius.circular(8),
+                color: Colors.black26,
               ),
               child: Text(
                 device.type,
-                style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -317,18 +328,18 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 Text(
                   device.isOccupied ? formattedTime : '00:00:00',
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: device.isOccupied 
-                        ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent) 
-                        : Colors.white70,
+                        ? (device.isPaused ? Colors.orangeAccent : Colors.cyanAccent) 
+                        : Colors.white54,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   '${currentCost.toStringAsFixed(2)} ج.م',
                   style: const TextStyle(
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: FontWeight.bold,
                     color: Colors.amber,
                   ),
@@ -340,8 +351,8 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           // 4. أزرار التبديل (زوجي / فردي)
           Container(
             decoration: BoxDecoration(
-              color: Colors.black26,
-              borderRadius: BorderRadius.circular(8),
+              color: Colors.black45,
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               children: [
@@ -349,17 +360,17 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                   child: GestureDetector(
                     onTap: () => provider.toggleMode(device.id, 'multi'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 5),
                       decoration: BoxDecoration(
-                        color: device.mode == 'multi' ? Colors.grey.shade800 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                        color: device.mode == 'multi' ? Colors.deepPurple.shade700 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(
                         child: Text(
                           'زوجي',
                           style: TextStyle(
                             color: device.mode == 'multi' ? Colors.white : Colors.grey,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -371,17 +382,17 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                   child: GestureDetector(
                     onTap: () => provider.toggleMode(device.id, 'single'),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 5),
                       decoration: BoxDecoration(
-                        color: device.mode == 'single' ? Colors.grey.shade800 : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
+                        color: device.mode == 'single' ? Colors.deepPurple.shade700 : Colors.transparent,
+                        borderRadius: BorderRadius.circular(6),
                       ),
                       child: Center(
                         child: Text(
                           'فردي',
                           style: TextStyle(
                             color: device.mode == 'single' ? Colors.white : Colors.grey,
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
@@ -393,15 +404,15 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ),
           ),
 
-          // 5. زر التشغيل الأخضر أو الإيقاف
+          // 5. زر التشغيل أو الإيقاف / المحاسبة
           SizedBox(
             width: double.infinity,
-            height: 36,
+            height: 32,
             child: ElevatedButton(
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green.shade600,
+                backgroundColor: device.isOccupied ? Colors.red.shade700 : Colors.green.shade600,
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                 padding: EdgeInsets.zero,
               ),
               onPressed: () async {
@@ -418,7 +429,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               },
               child: Text(
                 device.isOccupied ? 'إيقاف / محاسبة' : 'تشغيل',
-                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
               ),
             ),
           ),
@@ -435,17 +446,21 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: Text('إدارة جلسة: ${device.name}'),
+          backgroundColor: const Color(0xFF1E1E1E),
+          title: Text('إدارة جلسة: ${device.name}', style: const TextStyle(color: Colors.white)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               TextField(
                 controller: costController,
+                style: const TextStyle(color: Colors.white),
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'المبلغ النهائي (تعديل السعر ج.م)',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: Colors.grey),
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.deepPurple)),
                 ),
               ),
               const SizedBox(height: 15),
@@ -453,7 +468,12 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               const SizedBox(height: 5),
               DropdownButtonFormField<String>(
                 value: paymentMethod,
-                decoration: const InputDecoration(border: OutlineInputBorder()),
+                dropdownColor: const Color(0xFF1E1E1E),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.deepPurple)),
+                ),
                 items: ['كاش', 'فيزا'].map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                 onChanged: (val) => setState(() => paymentMethod = val!),
               ),
@@ -462,13 +482,13 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           actions: [
             TextButton(
               style: TextButton.styleFrom(
-                foregroundColor: device.isPaused ? Colors.green : Colors.orange,
+                foregroundColor: device.isPaused ? Colors.greenAccent : Colors.orangeAccent,
               ),
               onPressed: () async {
                 await provider.togglePauseSession(device.id, device.isPaused);
                 if (ctx.mounted) Navigator.pop(ctx);
               },
-              child: Text(device.isPaused ? 'استئناف' : 'إيقاف مؤقت'),
+              child: Text(device.isPaused ? 'استئناف العداد' : 'إيقاف مؤقت'),
             ),
             TextButton(
               onPressed: () => Navigator.pop(ctx), 
