@@ -109,12 +109,45 @@ class ExpenseListView extends StatelessWidget {
           child: ListTile(
             title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text(item.date != null ? item.date!.toDate().toString().substring(0, 16) : 'جاري الحفظ...'),
-            trailing: Text(
-              '${item.amount.toStringAsFixed(2)} ج.م',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: type == 'مصروف' ? Colors.red : Colors.orange,
-              ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  '${item.amount.toStringAsFixed(2)} ج.م',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: type == 'مصروف' ? Colors.red : Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                // زر الحذف مع رسالة تأكيد
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.grey, size: 20),
+                  tooltip: 'حذف',
+                  onPressed: () async {
+                    bool? confirm = await showDialog(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('تأكيد الحذف'),
+                        content: Text('هل أنت متأكد من حذف (${item.title})؟'),
+                        actions: [
+                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+                          ElevatedButton(
+                            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('حذف'),
+                          ),
+                        ],
+                      ),
+                    );
+
+                    if (confirm == true) {
+                      // استدعاء دالة الحذف من البروفايدر (تأكد أن اسمها متوافق مع البروفايدر لديك، أو استخدم item.id إذا كان موديل المصروف يحتوي عليه)
+                      provider.deleteExpenseOrAdvance(item.id); 
+                    }
+                  },
+                ),
+              ],
             ),
           ),
         );
