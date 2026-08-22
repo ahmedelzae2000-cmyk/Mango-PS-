@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                       if (selectedRole == 'مدير') {
                         // باسورد المدير افتراضياً 1234 (يمكنك تغييره هنا)
-                        if (passwordController.text == '1234') {
+                        if (passwordController.text == '1995') {
                           provider.setUserRole('مدير');
                           _goToHome(context);
                         } else {
