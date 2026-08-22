@@ -5,6 +5,7 @@ import 'providers/device_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/shift_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/login_screen.dart'; // أضف هذا السطر
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +35,6 @@ class MyApp extends StatelessWidget {
           return MaterialApp(
             title: 'Mango PS',
             debugShowCheckedModeBanner: false,
-            // هنا السطر الذي قمت بذكره لتفعيل المود الداكن والفاتح
             themeMode: provider.appMode == 'داكن (Dark)' ? ThemeMode.dark : ThemeMode.light,
             theme: ThemeData(
               brightness: Brightness.light,
@@ -46,11 +46,12 @@ class MyApp extends StatelessWidget {
               primarySwatch: Colors.deepPurple,
               useMaterial3: true,
             ),
-            home: const HomeScreen(),
+            home: const LoginScreen(), // اجعلها تبدأ بشاشة الدخول
             routes: {
               '/home': (context) => const HomeScreen(),
               '/shift': (context) => const ShiftScreen(),
               '/settings': (context) => const SettingsScreen(),
+              '/login': (context) => const LoginScreen(),
             },
           );
         },
