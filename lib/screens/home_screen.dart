@@ -24,17 +24,19 @@ class _HomeScreenState extends State<HomeScreen> {
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
 
+    // الصفحات التي تظهر بناءً على الصلاحية
     List<Widget> pages = [
       const DevicesPage(),
-      const ShiftScreen(),
       if (isManager) ...[
+        const ShiftScreen(),
         const ExpensesScreen(),
         const ReportScreen(),
         const SettingsScreen(),
       ],
     ];
 
-    if (!isManager && _selectedIndex > 1) {
+    // لو الموظف غير المؤشر وتم إخفاء الصفحات، نعيده للصفحة الأولى
+    if (!isManager && _selectedIndex >= pages.length) {
       _selectedIndex = 0;
     }
 
@@ -75,22 +77,23 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
-        selectedItemColor: Colors.deepPurple,
-        unselectedItemColor: Colors.grey,
-        type: BottomNavigationBarType.fixed,
-        onTap: (index) => setState(() => _selectedIndex = index),
-        items: [
-          const BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
-          const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
-          if (isManager) ...[
-            const BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
-            const BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
-            const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
-          ],
-        ],
-      ),
+      // إظهار شريط التنقل السفلي للمدير فقط، أو إخفاؤه تماماً لو الموظف لا يملك سوى شاشة واحدة
+      bottomNavigationBar: isManager
+          ? BottomNavigationBar(
+              currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
+              selectedItemColor: Colors.deepPurple,
+              unselectedItemColor: Colors.grey,
+              type: BottomNavigationBarType.fixed,
+              onTap: (index) => setState(() => _selectedIndex = index),
+              items: const [
+                BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
+                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
+                BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
+                BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
+                BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+              ],
+            )
+          : null, // الموظف لن يظهر له شريط سفلي طالما يملك شاشة الأجهزة فقط
     );
   }
 }
@@ -233,15 +236,25 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       currentCost = (elapsed.inSeconds / 3600.0) * activePrice;
     }
 
-    // تنسيق العداد بدقة عالية (ساعات:دقائق:ثواني)
     String twoDigits(int n) => n.toString().padLeft(2, '0');
     String formattedTime = '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () {
+      onTap: () async {
         if (!device.isOccupied) {
-          _showStartDialog(context, device);
+          // التحقق من وجود وردية نشطة قبل بدء الجلسة
+          bool success = await provider.startSession(device.id, device.mode);
+          if (!success && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('لا يمكن بدء الجلسة، يجب فتح وردية أولاً!')),
+            );
+            return;
+          }
+          if (success && context.mounted) {
+            // لو نجحت والنافذة تحتاج حوار بدء
+            _showStartDialog(context, device);
+          }
         } else {
           _showFinishDialog(context, device, currentCost);
         }
@@ -267,7 +280,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            // شارة نوع الجهاز (PS4 / PS5) بشكل جمالي مع أيقونة تحكم
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -276,13 +288,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                   decoration: BoxDecoration(
                     color: device.type == 'PS5' ? Colors.blueGrey.shade900 : Colors.deepPurple,
                     borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.2),
-                        blurRadius: 4,
-                        offset: const Offset(0, 2),
-                      )
-                    ],
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -319,7 +324,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 ),
               ],
             ),
-            // اسم الجهاز في المنتصف
             Center(
               child: Text(
                 device.name,
@@ -332,7 +336,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            // العداد الدقيق والتكلفة الحالية
             device.isOccupied
                 ? Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -349,7 +352,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                             fontSize: 12, 
                             fontWeight: FontWeight.bold, 
                             color: Colors.amberAccent,
-                            letterSpacing: 0.5,
                           ),
                         ),
                         Text(
@@ -376,7 +378,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   }
 
   void _showStartDialog(BuildContext context, DeviceModel device) {
-    String mode = 'single';
+    String mode = device.mode;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
