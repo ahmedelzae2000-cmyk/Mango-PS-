@@ -109,52 +109,81 @@ class ShiftScreen extends StatelessWidget {
             },
           ),
 
-          // عرض تفاصيل الورديات
+          // عرض تفاصيل الورديات مع حساب المصاريف والسلف تلقائياً
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
               stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
-              builder: (context, snapshot) {
-                if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-                final shifts = snapshot.data!.docs;
+              builder: (context, shiftSnapshot) {
+                if (!shiftSnapshot.hasData) return const Center(child: CircularProgressIndicator());
+                final shifts = shiftSnapshot.data!.docs;
+
+                if (shifts.isEmpty) {
+                  return const Center(child: Text('لا توجد ورديات مسجلة'));
+                }
 
                 return ListView.builder(
                   itemCount: shifts.length,
                   itemBuilder: (context, index) {
-                    final data = shifts[index].data() as Map<String, dynamic>;
-                    bool isActive = data['isActive'] ?? false;
-                    double total = (data['totalRevenue'] ?? 0.0).toDouble();
-                    double cash = (data['cashRevenue'] ?? 0.0).toDouble();
-                    double visa = (data['visaRevenue'] ?? 0.0).toDouble();
-                    double expenses = (data['expenses'] ?? 0.0).toDouble();
+                    final shiftDoc = shifts[index];
+                    final shiftData = shiftDoc.data() as Map<String, dynamic>;
+                    String shiftId = shiftDoc.id;
+                    bool isActive = shiftData['isActive'] ?? false;
+                    double total = (shiftData['totalRevenue'] ?? 0.0).toDouble();
+                    double cash = (shiftData['cashRevenue'] ?? 0.0).toDouble();
+                    double visa = (shiftData['visaRevenue'] ?? 0.0).toDouble();
 
-                    return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-                      child: Padding(
-                        padding: const EdgeInsets.all(10.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    // استخدام Stream فرعي لحساب المصاريف الخاصة بهذه الوردية لحظياً
+                    return StreamBuilder<QuerySnapshot>(
+                      stream: db.collection('expenses').where('shiftId', isEqualTo: shiftId).snapshots(),
+                      builder: (context, expenseSnapshot) {
+                        double shiftExpenses = 0.0;
+                        if (expenseSnapshot.hasData) {
+                          for (var expDoc in expenseSnapshot.data!.docs) {
+                            var expData = expDoc.data() as Map<String, dynamic>;
+                            shiftExpenses += (expData['amount'] ?? 0.0).toDouble();
+                          }
+                        }
+
+                        // حساب الصافي (المبيعات - المصاريف)
+                        double netTotal = total - shiftExpenses;
+
+                        return Card(
+                          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                          child: Padding(
+                            padding: const EdgeInsets.all(10.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text('وردية رقم ${shifts.length - index}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                                Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 12)),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('وردية رقم ${shifts.length - index}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                    Text(isActive ? '🟢 نشطة' : '🔴 مغلقة', style: TextStyle(color: isActive ? Colors.green : Colors.red, fontSize: 12)),
+                                  ],
+                                ),
+                                const Divider(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('💰 الإجمالي: $total ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple, fontSize: 13)),
+                                    Text('💎 الصافي: $netTotal ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 13)),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('💵 كاش: $cash ج.م', style: const TextStyle(fontSize: 12)),
+                                    Text('💳 فيزا: $visa ج.م', style: const TextStyle(fontSize: 12)),
+                                    Text('💸 مصاريف: $shiftExpenses ج.م', style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  ],
+                                ),
                               ],
                             ),
-                            const Divider(height: 8),
-                            Text('💰 الإجمالي الكلي: $total ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple, fontSize: 13)),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text('💵 كاش: $cash ج.م', style: const TextStyle(fontSize: 12)),
-                                Text('💳 فيزا: $visa ج.م', style: const TextStyle(fontSize: 12)),
-                                Text('💸 مصاريف: $expenses ج.م', style: const TextStyle(color: Colors.red, fontSize: 12)),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
