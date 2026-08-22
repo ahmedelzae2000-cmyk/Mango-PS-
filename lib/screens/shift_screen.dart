@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'expenses_screen.dart'; // شاشة المصاريف المنفصلة
-import 'report_screen.dart';   // شاشة التقرير المالي المنفصلة
 
 class ShiftScreen extends StatelessWidget {
   const ShiftScreen({super.key});
@@ -34,21 +32,10 @@ class ShiftScreen extends StatelessWidget {
         title: const Text('إدارة الورديات والسجلات'),
         backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
-        actions: [
-          // زر المصاريف في الـ AppBar لينتقل للشاشة المنفصلة
-          IconButton(
-            icon: const Icon(Icons.money_off),
-            tooltip: 'المصاريف والسلف',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const ExpensesScreen()),
-            ),
-          ),
-        ],
       ),
       body: Column(
         children: [
-          // زر بدء أو إنهاء الوردية + زر التقرير المنفصل
+          // زر بدء أو إنهاء الوردية الحالية
           StreamBuilder<QuerySnapshot>(
             stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
             builder: (context, snapshot) {
@@ -64,52 +51,28 @@ class ShiftScreen extends StatelessWidget {
 
               return Padding(
                 padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: hasActiveShift ? Colors.red : Colors.green,
-                          minimumSize: const Size(double.infinity, 45),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: hasActiveShift 
-                            ? () => _endShift(activeShiftId!)
-                            : () => _startShift(context),
-                        child: Text(
-                          hasActiveShift ? 'إنهاء الوردية الحالية' : 'بدء وردية جديدة',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                        ),
-                      ),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: hasActiveShift ? Colors.red : Colors.green,
+                      minimumSize: const Size(double.infinity, 45),
+                      foregroundColor: Colors.white,
                     ),
-                    const SizedBox(width: 10),
-                    // زر الانتقال لشاشة التقرير المالي المنفصلة
-                    Expanded(
-                      flex: 1,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.teal,
-                          minimumSize: const Size(double.infinity, 45),
-                          foregroundColor: Colors.white,
-                        ),
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => const ReportScreen()),
-                          );
-                        },
-                        icon: const Icon(Icons.assessment, size: 18),
-                        label: const Text('تقرير'),
-                      ),
+                    onPressed: hasActiveShift 
+                        ? () => _endShift(activeShiftId!)
+                        : () => _startShift(context),
+                    child: Text(
+                      hasActiveShift ? 'إنهاء الوردية الحالية' : 'بدء وردية جديدة',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
-                  ],
+                  ),
                 ),
               );
             },
           ),
 
-          // عرض تفاصيل الورديات مع حساب المصاريف والسلف تلقائياً
+          // عرض تفاصيل الورديات مع حساب المصاريف والسلف تلقائياً في الخلفية
           Expanded(
             flex: 1,
             child: StreamBuilder<QuerySnapshot>(
