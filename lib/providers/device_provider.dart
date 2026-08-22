@@ -153,17 +153,15 @@ class DeviceProvider extends ChangeNotifier {
   // --- دوال الأجهزة والورديات والجلسات (مع الشروط الجديدة) ---
 
   Future<void> addDevice(String name, String type, double s, double m) async {
-    if (_userRole != 'مدير') return; // إضافة الجهاز للمدير فقط
+    if (_userRole != 'مدير') return;
     await _db.collection('devices').add({'name': name, 'type': type, 'isOccupied': false, 'mode': 'single', 'singlePrice': s, 'multiPrice': m});
   }
 
-  // دالة حذف جهاز (للمدير فقط)
   Future<void> deleteDevice(String id) async {
     if (_userRole != 'مدير') return;
     await _db.collection('devices').doc(id).delete();
   }
 
-  // دالة مسح الورديات والجلسات القديمة (للمدير فقط)
   Future<void> clearHistoryAndShifts() async {
     if (_userRole != 'مدير') return;
 
@@ -179,7 +177,6 @@ class DeviceProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // التأكد من وجود وردية نشطة
   Future<bool> _hasActiveShift() async {
     final activeShiftQuery = await _db.collection('shifts')
         .where('isActive', isEqualTo: true)
@@ -189,7 +186,6 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<bool> startSession(String id, String mode) async {
-    // شرط: الجلسات لا تعمل إلا لو فيه وردية مفتوحة
     bool shiftActive = await _hasActiveShift();
     if (!shiftActive) return false;
 
@@ -206,7 +202,6 @@ class DeviceProvider extends ChangeNotifier {
   }
 
   Future<void> stopSession(String id, String name, String method, double cost) async {
-    // التحقق من وجود وردية نشطة قبل الإنهاء
     final activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
     if (activeShiftQuery.docs.isEmpty) return;
 
@@ -232,7 +227,7 @@ class DeviceProvider extends ChangeNotifier {
       revenueField: currentMethodRevenue + cost,
     });
 
-    // 3. تسجيل تفاصيل الجلسة في كولكشن history
+    // 3. تسجيل تفاصيل الجلسة في كولكشن history مع تسجيل من قام بالإغلاق
     DocumentReference historyRef = _db.collection('history').doc();
     batch.set(historyRef, {
       'deviceName': name,
@@ -240,6 +235,7 @@ class DeviceProvider extends ChangeNotifier {
       'paymentMethod': method,
       'timestamp': FieldValue.serverTimestamp(),
       'shiftId': currentShiftId,
+      'closedBy': _userRole, // <--- حفظ الدور (مدير أو موظف)
     });
 
     await batch.commit();
