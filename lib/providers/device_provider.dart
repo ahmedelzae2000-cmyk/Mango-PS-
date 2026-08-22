@@ -103,6 +103,11 @@ class DeviceProvider extends ChangeNotifier {
     });
   }
 
+  // الدالة الجديدة للحذف
+  Future<void> deleteExpenseOrAdvance(String id) async {
+    await _db.collection('expenses').doc(id).delete();
+  }
+
   double getExpensesTotalByType(String type) {
     return _expenses
         .where((e) => e.type == type)
@@ -161,7 +166,6 @@ class DeviceProvider extends ChangeNotifier {
   }
   
   double getCurrentShiftTotalSales() {
-    // هذه دالة تقديرية، يفضل ربطها بالـ Firestore مباشرة في شاشة التقرير
     return 0.0; 
   }
 }
