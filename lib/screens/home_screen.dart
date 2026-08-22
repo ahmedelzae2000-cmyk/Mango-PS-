@@ -5,7 +5,10 @@ import 'package:provider/provider.dart';
 import '../providers/device_provider.dart';
 import 'shift_screen.dart';
 import 'settings_screen.dart';
-import 'login_screen.dart'; // أضفنا استيراد شاشة الدخول للرجوع إليها عند الحاجة
+import 'login_screen.dart';
+// تأكد من أن أسماء ملفات الشاشات التالية مطابقة لمشروعك، أو قم بإنشائها إذا لم تكن موجودة
+import 'expenses_screen.dart'; 
+import 'reports_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -22,7 +25,20 @@ class _HomeScreenState extends State<HomeScreen> {
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
 
-    // إذا كان الموظف في صفحة الإعدادات وحصل تحديث، نرجعه للأجهزة تلقائياً
+    // تحديد الشاشات المتاحة بناءً على الصلاحية
+    // الموظف: [الأجهزة، الورديات] (طولها 2)
+    // المدير: [الأجهزة، الورديات، المصاريف، التقارير، الإعدادات] (طولها 5)
+    List<Widget> pages = [
+      const DevicesPage(),
+      const ShiftScreen(),
+      if (isManager) ...[
+        const ExpensesScreen(),
+        const ReportsScreen(),
+        const SettingsScreen(),
+      ],
+    ];
+
+    // إذا كان الموظف في تبويب غير مسموح له، نرجعه للصفحة الرئيسية تلقائياً
     if (!isManager && _selectedIndex > 1) {
       _selectedIndex = 0;
     }
@@ -39,12 +55,11 @@ class _HomeScreenState extends State<HomeScreen> {
         title: Text('Manga PS (${provider.userRole})'),
         elevation: 0,
         actions: [
-          // زر تسجيل الخروج أو تبديل الصلاحية للعودة لشاشة الدخول
           IconButton(
             icon: const Icon(Icons.logout),
             tooltip: 'تسجيل الخروج',
             onPressed: () {
-              provider.setUserRole('موظف'); // إعادة تعيين الصلاحية
+              provider.setUserRole('موظف');
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -60,25 +75,25 @@ class _HomeScreenState extends State<HomeScreen> {
           SafeArea(
             child: IndexedStack(
               index: _selectedIndex,
-              children: [
-                const DevicesPage(),
-                const ShiftScreen(),
-                if (isManager) const SettingsScreen(), // الإعدادات مخفية تماماً ولا تظهر إلا للمدير
-              ],
+              children: pages,
             ),
           ),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex > (isManager ? 2 : 1) ? 0 : _selectedIndex,
+        currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
         selectedItemColor: Colors.deepPurple,
         unselectedItemColor: Colors.grey,
+        type: BottomNavigationBarType.fixed, // هام لكي تظهر جميع الأيقونات بوضوح بدون أخطاء مساحة
         onTap: (index) => setState(() => _selectedIndex = index),
         items: [
           const BottomNavigationBarItem(icon: Icon(Icons.gamepad), label: 'الأجهزة'),
           const BottomNavigationBarItem(icon: Icon(Icons.history), label: 'الورديات'),
-          if (isManager) 
-            const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'), // تختفي تماماً للموظف
+          if (isManager) ...[
+            const BottomNavigationBarItem(icon: Icon(Icons.money_off), label: 'المصاريف'),
+            const BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'التقارير'),
+            const BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'الإعدادات'),
+          ],
         ],
       ),
     );
@@ -116,7 +131,6 @@ class DevicesPage extends StatelessWidget {
                 return DeviceGridCard(device: device);
               },
             ),
-      // زر إضافة الأجهزة يظهر للمدير فقط ويختفي عن الموظف
       floatingActionButton: isManager
           ? FloatingActionButton(
               backgroundColor: Colors.deepPurple,
