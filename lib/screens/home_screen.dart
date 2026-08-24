@@ -351,7 +351,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 ],
               ),
 
-              // 2. شارة شاشة ونوع الجهاز الأيقونية
+              // 2. شارة ونوع الجهاز الأيقونية
               Center(child: _buildDeviceTypeBadge(device.type)),
 
               // 3. العداد والمبلغ المالي
@@ -445,7 +445,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 
-  // ويدجت الشارة الأيقونية لنوع الجهاز
+  // ويدجت الشارة الأيقونية لنوع الجهاز (تم إصلاح الوزن هنا)
   Widget _buildDeviceTypeBadge(String type) {
     bool isPS5 = type.toUpperCase() == 'PS5';
     return Container(
@@ -474,7 +474,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             style: TextStyle(
               color: isPS5 ? Colors.lightBlueAccent : Colors.white,
               fontSize: 11,
-              fontWeight: FontWeight.extrabold,
+              fontWeight: FontWeight.w800,
             ),
           ),
         ],
