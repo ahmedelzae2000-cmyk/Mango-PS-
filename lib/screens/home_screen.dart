@@ -140,7 +140,7 @@ class DevicesPage extends StatelessWidget {
                 crossAxisCount: 2,
                 crossAxisSpacing: 10,
                 mainAxisSpacing: 10,
-                childAspectRatio: 0.72,
+                childAspectRatio: 0.68, // تعديل الارتفاع ليتناسب مع الزر الجديد
               ),
               itemCount: provider.devices.length,
               itemBuilder: (context, index) {
@@ -351,7 +351,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 ],
               ),
 
-              // 2. شارة ونوع الجهاز الأيقونية
+              // 2. نوع الجهاز
               Center(child: _buildDeviceTypeBadge(device.type)),
 
               // 3. العداد والمبلغ المالي
@@ -401,22 +401,73 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 ),
               ),
 
-              // 5. زر التشغيل أو الإيقاف / المحاسبة
-              SizedBox(
-                width: double.infinity,
-                height: 32,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: device.isOccupied
-                        ? Colors.redAccent.withOpacity(0.8)
-                        : Colors.greenAccent.withOpacity(0.8),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(6)),
-                    padding: EdgeInsets.zero,
-                  ),
-                  onPressed: () async {
-                    if (!device.isOccupied) {
+              // 5. الأزرار التحكمية (إيقاف مؤقت + تشغيل/إنهاء المحاسبة)
+              if (device.isOccupied)
+                Row(
+                  children: [
+                    // زر الإيقاف المؤقت / الاستئناف المباشر
+                    IconButton(
+                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      style: IconButton.styleFrom(
+                        backgroundColor: device.isPaused
+                            ? Colors.greenAccent.withOpacity(0.2)
+                            : Colors.orangeAccent.withOpacity(0.2),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(6)),
+                      ),
+                      icon: Icon(
+                        device.isPaused ? Icons.play_arrow : Icons.pause,
+                        color: device.isPaused
+                            ? Colors.greenAccent
+                            : Colors.orangeAccent,
+                        size: 20,
+                      ),
+                      onPressed: () {
+                        provider.togglePauseSession(device.id, device.isPaused);
+                      },
+                    ),
+                    const SizedBox(width: 6),
+                    // زر المحاسبة وإيقاف الجلسة
+                    Expanded(
+                      child: SizedBox(
+                        height: 32,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.redAccent.withOpacity(0.8),
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(6)),
+                            padding: EdgeInsets.zero,
+                          ),
+                          onPressed: () {
+                            _showFinishDialog(
+                                context, device, currentCost, provider);
+                          },
+                          child: const Text(
+                            'إنهاء ومحاسبة',
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              else
+                // زر التشغيل لجلسة جديدة
+                SizedBox(
+                  width: double.infinity,
+                  height: 32,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.greenAccent.withOpacity(0.8),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(6)),
+                      padding: EdgeInsets.zero,
+                    ),
+                    onPressed: () async {
                       bool success =
                           await provider.startSession(device.id, device.mode);
                       if (!success && context.mounted) {
@@ -427,17 +478,14 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                           ),
                         );
                       }
-                    } else {
-                      _showFinishDialog(context, device, currentCost, provider);
-                    }
-                  },
-                  child: Text(
-                    device.isOccupied ? 'إيقاف / محاسبة' : 'تشغيل',
-                    style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.bold),
+                    },
+                    child: const Text(
+                      'تشغيل الجلسة',
+                      style: TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
                   ),
                 ),
-              ),
             ],
           ),
         ),
@@ -445,7 +493,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     );
   }
 
-  // ويدجت الشارة الأيقونية لنوع الجهاز (تم إصلاح الوزن هنا)
   Widget _buildDeviceTypeBadge(String type) {
     bool isPS5 = type.toUpperCase() == 'PS5';
     return Container(
@@ -541,6 +588,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     final costController =
         TextEditingController(text: calculatedCost.toStringAsFixed(2));
     String paymentMethod = 'كاش';
+    bool isProcessing = false; // حماية ضد الضغط المكرر
 
     showDialog(
       context: context,
@@ -548,7 +596,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
         builder: (context, setDialogState) => AlertDialog(
           backgroundColor: const Color(0xFF1E1E1E),
           title: Text(
-            'إدارة جلسة: ${device.name}',
+            'إنهاء ومحاسبة: ${device.name}',
             style: const TextStyle(color: Colors.white),
           ),
           content: Column(
@@ -593,17 +641,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           ),
           actions: [
             TextButton(
-              style: TextButton.styleFrom(
-                foregroundColor:
-                    device.isPaused ? Colors.greenAccent : Colors.orangeAccent,
-              ),
-              onPressed: () async {
-                await provider.togglePauseSession(device.id, device.isPaused);
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
-              child: Text(device.isPaused ? 'استئناف العداد' : 'إيقاف مؤقت'),
-            ),
-            TextButton(
               onPressed: () => Navigator.pop(ctx),
               child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
             ),
@@ -612,17 +649,27 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                 backgroundColor: Colors.deepPurple,
                 foregroundColor: Colors.white,
               ),
-              onPressed: () async {
-                double parsedVal =
-                    double.tryParse(costController.text) ?? calculatedCost;
-                await provider.stopSession(
-                  device.id,
-                  device.name,
-                  paymentMethod,
-                  parsedVal >= 0 ? parsedVal : calculatedCost,
-                );
-                if (ctx.mounted) Navigator.pop(ctx);
-              },
+              onPressed: isProcessing
+                  ? null
+                  : () async {
+                      setDialogState(() => isProcessing = true);
+
+                      double parsedVal =
+                          double.tryParse(costController.text) ?? calculatedCost;
+                      double finalAmount =
+                          parsedVal >= 0 ? parsedVal : calculatedCost;
+
+                      // إغلاق النافذة فوراً لتفادي التهنيج والضغط المكرر
+                      Navigator.pop(ctx);
+
+                      // إرسال طلب الإنهاء في الخلفية
+                      await provider.stopSession(
+                        device.id,
+                        device.name,
+                        paymentMethod,
+                        finalAmount,
+                      );
+                    },
               child: const Text('حفظ وتسجيل الفاتورة'),
             ),
           ],
