@@ -141,7 +141,7 @@ class DailyReportView extends StatelessWidget {
   }
 }
 
-// ================= 2. التقرير الشهري المختصر (مع خانة تجميع الورديات) =================
+// ================= 2. التقرير الشهري (تجميع الورديات والمصاريف حسب كل شهر لوحده) =================
 class MonthlyReportView extends StatelessWidget {
   const MonthlyReportView({super.key});
 
@@ -162,129 +162,112 @@ class MonthlyReportView extends StatelessWidget {
         return StreamBuilder<QuerySnapshot>(
           stream: db.collection('expenses').snapshots(),
           builder: (context, expenseSnapshot) {
-            double grandTotalRevenue = 0.0;
-            double grandTotalCash = 0.0;
-            double grandTotalVisa = 0.0;
-            double grandTotalExpenses = 0.0;
+            // خريطة لتجميع بيانات كل شهر لوحده (المفتاح: "YYYY-MM")
+            Map<String, MonthSummary> monthlyData = {};
 
-            // 1. حساب إجمالي جميع الورديات
+            // 1. تجميع الورديات حسب الشهر والسنة
             for (var shiftDoc in shifts) {
               var data = shiftDoc.data() as Map<String, dynamic>;
-              grandTotalRevenue += (data['totalRevenue'] ?? 0.0).toDouble();
-              grandTotalCash += (data['cashRevenue'] ?? 0.0).toDouble();
-              grandTotalVisa += (data['visaRevenue'] ?? 0.0).toDouble();
+              Timestamp? startTime = data['startTime'];
+              if (startTime == null) continue;
+
+              DateTime date = startTime.toDate();
+              String monthKey = DateFormat('yyyy-MM').format(date); // مثال: 2026-09
+
+              monthlyData.putIfAbsent(monthKey, () => MonthSummary(monthName: DateFormat('MMMM yyyy', 'ar').format(date)));
+
+              monthlyData[monthKey]!.totalRevenue += (data['totalRevenue'] ?? 0.0).toDouble();
+              monthlyData[monthKey]!.totalCash += (data['cashRevenue'] ?? 0.0).toDouble();
+              monthlyData[monthKey]!.totalVisa += (data['visaRevenue'] ?? 0.0).toDouble();
+              monthlyData[monthKey]!.shiftCount += 1;
             }
 
-            // 2. حساب إجمالي كافة المصاريف
+            // 2. تجميع المصاريف حسب الشهر والسنة
             if (expenseSnapshot.hasData) {
               for (var expDoc in expenseSnapshot.data!.docs) {
-                grandTotalExpenses += ((expDoc.data() as Map<String, dynamic>)['amount'] ?? 0.0).toDouble();
+                var expData = expDoc.data() as Map<String, dynamic>;
+                Timestamp? expTime = expData['date'];
+                if (expTime == null) continue;
+
+                DateTime date = expTime.toDate();
+                String monthKey = DateFormat('yyyy-MM').format(date);
+                double amount = (expData['amount'] ?? 0.0).toDouble();
+
+                if (monthlyData.containsKey(monthKey)) {
+                  monthlyData[monthKey]!.totalExpenses += amount;
+                } else {
+                  String monthName = DateFormat('MMMM yyyy', 'ar').format(date);
+                  monthlyData.putIfAbsent(monthKey, () => MonthSummary(monthName: monthName));
+                  monthlyData[monthKey]!.totalExpenses += amount;
+                }
               }
             }
 
-            double grandNetTotal = grandTotalRevenue - grandTotalExpenses;
+            // ترتيب الشهور تنازلياً (الأحدث أولاً)
+            var sortedKeys = monthlyData.keys.toList()..sort((a, b) => b.compareTo(a));
 
-            return Column(
-              children: [
-                // 🌟 كارت المجموع الكلي (إحصائيات الورديات بالكامل)
-                Card(
-                  margin: const EdgeInsets.all(12),
+            if (sortedKeys.isEmpty) {
+              return const Center(child: Text('لا توجد بيانات كافية للتقارير الشهرية'));
+            }
+
+            return ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: sortedKeys.length,
+              itemBuilder: (context, index) {
+                String key = sortedKeys[index];
+                MonthSummary summary = monthlyData[key]!;
+                double netTotal = summary.totalRevenue - summary.totalExpenses;
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 8),
                   color: const Color(0xFF1E1E2C),
-                  elevation: 5,
+                  elevation: 4,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
-                    padding: const EdgeInsets.all(14.0),
+                    padding: const EdgeInsets.all(16.0),
                     child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          '📊 المجموع الكلي لجميع الورديات',
-                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        const SizedBox(height: 10),
+                        // عنوان الشهر وعدد الورديات
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildSummaryItem('💰 الإجمالي', grandTotalRevenue, Colors.amber),
-                            _buildSummaryItem('💸 المصاريف', grandTotalExpenses, Colors.redAccent),
-                            _buildSummaryItem('💎 الصافي', grandNetTotal, Colors.greenAccent),
+                            Text(
+                              '📅 ${summary.monthName}',
+                              style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            Text(
+                              'عدد الورديات: ${summary.shiftCount}',
+                              style: const TextStyle(color: Colors.white70, fontSize: 12),
+                            ),
                           ],
                         ),
                         const Divider(color: Colors.white24, height: 20),
+                        
+                        // الإحصائيات المالية للشهر
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Text('💵 كاش: ${grandTotalCash.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                            Text('💳 فيزا: ${grandTotalVisa.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                            Text('📑 عدد الورديات: ${shifts.length}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            _buildSummaryItem('💰 الإجمالي', summary.totalRevenue, Colors.amberAccent),
+                            _buildSummaryItem('💸 المصاريف', summary.totalExpenses, Colors.redAccent),
+                            _buildSummaryItem('💎 الصافي', netTotal, Colors.greenAccent),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        
+                        // تفاصيل الكاش والفيزا
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Text('💵 كاش: ${summary.totalCash.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            Text('💳 فيزا: ${summary.totalVisa.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
                           ],
                         ),
                       ],
                     ),
                   ),
-                ),
-
-                // قائمة الورديات التفصيلية
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    itemCount: shifts.length,
-                    itemBuilder: (context, index) {
-                      var shiftDoc = shifts[index];
-                      var data = shiftDoc.data() as Map<String, dynamic>;
-                      String shiftId = shiftDoc.id;
-
-                      double total = (data['totalRevenue'] ?? 0.0).toDouble();
-                      double cash = (data['cashRevenue'] ?? 0.0).toDouble();
-                      double visa = (data['visaRevenue'] ?? 0.0).toDouble();
-                      Timestamp? startTime = data['startTime'];
-                      String dateStr = startTime != null 
-                          ? DateFormat('yyyy-MM-dd (hh:mm a)').format(startTime.toDate()) 
-                          : 'وردية حالية';
-
-                      double shiftExpenses = 0.0;
-                      if (expenseSnapshot.hasData) {
-                        for (var exp in expenseSnapshot.data!.docs) {
-                          var expData = exp.data() as Map<String, dynamic>;
-                          if (expData['shiftId'] == shiftId) {
-                            shiftExpenses += (expData['amount'] ?? 0.0).toDouble();
-                          }
-                        }
-                      }
-
-                      double net = total - shiftExpenses;
-
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
-                        elevation: 2,
-                        child: Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('📅 $dateStr', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.blueGrey)),
-                                  Text('الصافي: ${net.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.teal)),
-                                ],
-                              ),
-                              const Divider(height: 12),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text('💵 كاش: ${cash.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
-                                  Text('💳 فيزا: ${visa.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
-                                  Text('💸 مصاريف: ${shiftExpenses.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.red)),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ],
+                );
+              },
             );
           },
         );
@@ -292,7 +275,6 @@ class MonthlyReportView extends StatelessWidget {
     );
   }
 
-  // عنصر تجميلي لعرض الإحصائيات داخل الخانة العلوية
   Widget _buildSummaryItem(String title, double amount, Color color) {
     return Column(
       children: [
@@ -300,9 +282,28 @@ class MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${amount.toStringAsFixed(2)} ج.م',
-          style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold),
+          style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
         ),
       ],
     );
   }
+}
+
+// نموذج مساعد لتبيان ملخص بيانات الشهر الواحد
+class MonthSummary {
+  String monthName;
+  double totalRevenue;
+  double totalCash;
+  double totalVisa;
+  double totalExpenses;
+  int shiftCount;
+
+  MonthSummary({
+    required this.monthName,
+    this.totalRevenue = 0.0,
+    this.totalCash = 0.0,
+    this.totalVisa = 0.0,
+    this.totalExpenses = 0.0,
+    this.shiftCount = 0,
+  });
 }
