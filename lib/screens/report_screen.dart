@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package0cloud_firestore/cloud_firestore.dart' if (dart.library.html) '' ; // للتوافق
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 
