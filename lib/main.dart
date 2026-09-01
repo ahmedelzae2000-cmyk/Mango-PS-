@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'providers/device_provider.dart';
 import 'screens/home_screen.dart';
 import 'screens/shift_screen.dart';
 import 'screens/settings_screen.dart';
-import 'screens/login_screen.dart'; // أضف هذا السطر
+import 'screens/login_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // 1. تهيئة الفايربيز
   await Firebase.initializeApp(
     options: const FirebaseOptions(
       apiKey: "AIzaSyB5UujdLmnqFvmujV3FSwSH2iI0L-78jk4",
@@ -18,11 +21,17 @@ void main() async {
       storageBucket: "mango-ps.firebasestorage.app",
     ),
   );
-  runApp(const MyApp());
+
+  // 2. التحقق من حالة تسجيل الدخول المحفوظة
+  final prefs = await SharedPreferences.getInstance();
+  bool isLoggedIn = prefs.getBool('is_logged_in') ?? false;
+
+  runApp(MyApp(isLoggedIn: isLoggedIn));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLoggedIn;
+  const MyApp({super.key, required this.isLoggedIn});
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +52,11 @@ class MyApp extends StatelessWidget {
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              primarySwatch: Colors.deepPurple,
+              primarySwatch: Colors.darkTheme == null ? Colors.deepPurple : Colors.deepPurple,
               useMaterial3: true,
             ),
-            home: const LoginScreen(), // اجعلها تبدأ بشاشة الدخول
+            // إذا كان مسجلاً للدخول ينتقل للرئيسية مباشرة، وإلا يفتح شاشة الدخول
+            home: isLoggedIn ? const HomeScreen() : const LoginScreen(),
             routes: {
               '/home': (context) => const HomeScreen(),
               '/shift': (context) => const ShiftScreen(),
