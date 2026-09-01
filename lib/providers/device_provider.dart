@@ -305,6 +305,46 @@ class DeviceProvider extends ChangeNotifier {
 
     await batch.commit();
   }
+
+  // --- دالة تعديل قيمة الفاتورة ومزامنتها مع الوردية والتقارير ---
+  Future<void> updateShiftSessionAmount({
+    required String historyId,
+    required double newAmount,
+    required double oldAmount,
+    required String paymentMethod,
+  }) async {
+    if (_userRole != 'مدير') return;
+
+    double diff = newAmount - oldAmount;
+
+    // 1. تحديث قيمة الفاتورة في كولكشن السجل history
+    await _db.collection('history').doc(historyId).update({'cost': newAmount});
+
+    // 2. تحديث الوردية النشطة بالفرق المالي
+    var activeShiftQuery = await _db.collection('shifts').where('isActive', isEqualTo: true).limit(1).get();
+    if (activeShiftQuery.docs.isNotEmpty) {
+      var shiftDoc = activeShiftQuery.docs.first;
+      var shiftData = shiftDoc.data();
+
+      double currentTotal = (shiftData['totalRevenue'] ?? 0.0).toDouble();
+      double currentCash = (shiftData['cashRevenue'] ?? 0.0).toDouble();
+      double currentVisa = (shiftData['visaRevenue'] ?? 0.0).toDouble();
+
+      if (paymentMethod == 'كاش') {
+        currentCash += diff;
+      } else {
+        currentVisa += diff;
+      }
+
+      await _db.collection('shifts').doc(shiftDoc.id).update({
+        'totalRevenue': currentTotal + diff < 0 ? 0.0 : currentTotal + diff,
+        'cashRevenue': currentCash < 0 ? 0.0 : currentCash,
+        'visaRevenue': currentVisa < 0 ? 0.0 : currentVisa,
+      });
+    }
+
+    notifyListeners();
+  }
   
   // دالة لحساب إجمالي المبيعات للوردية الحالية
   double getCurrentShiftTotalSales() {
