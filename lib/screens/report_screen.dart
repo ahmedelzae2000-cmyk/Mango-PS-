@@ -35,7 +35,7 @@ class ReportScreen extends StatelessWidget {
   }
 }
 
-// ================= 1. التقرير اليومي المفصل =================
+// ================= 1. التقرير اليومي (الجلسات والمصاريف بالتاريخ) =================
 class DailyReportView extends StatelessWidget {
   const DailyReportView({super.key});
 
@@ -52,6 +52,7 @@ class DailyReportView extends StatelessWidget {
         ),
         const SizedBox(height: 10),
 
+        // عرض الجلسات المنتهية مع تواريخها
         StreamBuilder<QuerySnapshot>(
           stream: db.collection('history').orderBy('timestamp', descending: true).snapshots(),
           builder: (context, snapshot) {
@@ -89,12 +90,58 @@ class DailyReportView extends StatelessWidget {
             );
           },
         ),
+
+        const SizedBox(height: 20),
+        const Text(
+          'المصاريف والسلف المسجلة',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent),
+        ),
+        const SizedBox(height: 10),
+
+        // عرض المصاريف اليومية
+        StreamBuilder<QuerySnapshot>(
+          stream: db.collection('expenses').orderBy('date', descending: true).snapshots(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            final docs = snapshot.data!.docs;
+
+            if (docs.isEmpty) {
+              return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد مصاريف مسجلة')));
+            }
+
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: docs.length,
+              itemBuilder: (context, index) {
+                var data = docs[index].data() as Map<String, dynamic>;
+                String title = data['title'] ?? '';
+                double amount = (data['amount'] ?? 0.0).toDouble();
+                String type = data['type'] ?? 'مصروف';
+                Timestamp? time = data['date'];
+                String formattedDate = time != null 
+                    ? DateFormat('yyyy-MM-dd – hh:mm a').format(time.toDate()) 
+                    : '';
+
+                return Card(
+                  margin: const EdgeInsets.symmetric(vertical: 4),
+                  child: ListTile(
+                    leading: Icon(type == 'مصروف' ? Icons.money_off : Icons.person_pin, color: Colors.red),
+                    title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('$type | $formattedDate'),
+                    trailing: Text('- ${amount.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
+                  ),
+                );
+              },
+            );
+          },
+        ),
       ],
     );
   }
 }
 
-// ================= 2. التقرير الشهري المختصر (معتمد على جدول الأرشيف والمصاريف) =================
+// ================= 2. التقرير الشهري المختصر (محدث ليعمل تلقائياً من الـ history) =================
 class MonthlyReportView extends StatelessWidget {
   const MonthlyReportView({super.key});
 
@@ -103,18 +150,21 @@ class MonthlyReportView extends StatelessWidget {
     final db = FirebaseFirestore.instance;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: db.collection('history').snapshots(), // الاعتماد على جدول الجلسات المكتملة
+      stream: db.collection('history').snapshots(),
       builder: (context, historySnapshot) {
         if (!historySnapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final historyDocs = historySnapshot.data!.docs;
-
+        
         return StreamBuilder<QuerySnapshot>(
           stream: db.collection('expenses').snapshots(),
           builder: (context, expenseSnapshot) {
             Map<String, MonthSummary> monthlyData = {};
+            double grandTotalRevenue = 0.0;
+            double grandTotalCash = 0.0;
+            double grandTotalVisa = 0.0;
+            double grandTotalExpenses = 0.0;
 
-            // 1. تجميع إيرادات الجلسات حسب الشهر
-            for (var doc in historyDocs) {
+            // 1. تجميع الجلسات من جدول history حسب الشهر
+            for (var doc in historySnapshot.data!.docs) {
               var data = doc.data() as Map<String, dynamic>;
               Timestamp? time = data['timestamp'];
               if (time == null) continue;
@@ -123,6 +173,13 @@ class MonthlyReportView extends StatelessWidget {
               String monthKey = DateFormat('yyyy-MM').format(date);
               double cost = (data['cost'] ?? 0.0).toDouble();
               String payment = data['paymentMethod'] ?? 'كاش';
+
+              grandTotalRevenue += cost;
+              if (payment.contains('فيزا')) {
+                grandTotalVisa += cost;
+              } else {
+                grandTotalCash += cost;
+              }
 
               monthlyData.putIfAbsent(
                 monthKey, 
@@ -140,14 +197,15 @@ class MonthlyReportView extends StatelessWidget {
 
             // 2. تجميع المصاريف حسب الشهر
             if (expenseSnapshot.hasData) {
-              for (var doc in expenseSnapshot.data!.docs) {
-                var data = doc.data() as Map<String, dynamic>;
-                Timestamp? time = data['date'];
-                if (time == null) continue;
+              for (var expDoc in expenseSnapshot.data!.docs) {
+                var expData = expDoc.data() as Map<String, dynamic>;
+                Timestamp? time = expData['date'];
+                double amount = (expData['amount'] ?? 0.0).toDouble();
+                grandTotalExpenses += amount;
 
+                if (time == null) continue;
                 DateTime date = time.toDate();
                 String monthKey = DateFormat('yyyy-MM').format(date);
-                double amount = (data['amount'] ?? 0.0).toDouble();
 
                 monthlyData.putIfAbsent(
                   monthKey, 
@@ -158,65 +216,94 @@ class MonthlyReportView extends StatelessWidget {
               }
             }
 
+            double grandNetTotal = grandTotalRevenue - grandTotalExpenses;
             var sortedKeys = monthlyData.keys.toList()..sort((a, b) => b.compareTo(a));
 
             if (sortedKeys.isEmpty) {
-              return const Center(child: Text('لا توجد بيانات كافية للتقارير الشهرية'));
+              return const Center(child: Text('لا توجد بيانات كافية للتقارير'));
             }
 
-            return ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: sortedKeys.length,
-              itemBuilder: (context, index) {
-                String key = sortedKeys[index];
-                MonthSummary summary = monthlyData[key]!;
-                double netTotal = summary.totalRevenue - summary.totalExpenses;
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 8),
+            return Column(
+              children: [
+                // 🌟 كارت المجموع الكلي
+                Card(
+                  margin: const EdgeInsets.all(12),
                   color: const Color(0xFF1E1E2C),
-                  elevation: 4,
+                  elevation: 5,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   child: Padding(
-                    padding: const EdgeInsets.all(16.0),
+                    padding: const EdgeInsets.all(14.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        const Text(
+                          '📊 المجموع الكلي للإيرادات',
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        const SizedBox(height: 10),
                         Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            Text(
-                              '📅 ${summary.monthName}',
-                              style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                            Text(
-                              'عدد الجلسات: ${summary.shiftCount}',
-                              style: const TextStyle(color: Colors.white70, fontSize: 12),
-                            ),
+                            _buildSummaryItem('💰 الإجمالي', grandTotalRevenue, Colors.amber),
+                            _buildSummaryItem('💸 المصاريف', grandTotalExpenses, Colors.redAccent),
+                            _buildSummaryItem('💎 الصافي', grandNetTotal, Colors.greenAccent),
                           ],
                         ),
                         const Divider(color: Colors.white24, height: 20),
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildSummaryItem('💰 الإجمالي', summary.totalRevenue, Colors.amberAccent),
-                            _buildSummaryItem('💸 المصاريف', summary.totalExpenses, Colors.redAccent),
-                            _buildSummaryItem('💎 الصافي', netTotal, Colors.greenAccent),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            Text('💵 كاش: ${summary.totalCash.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                            Text('💳 فيزا: ${summary.totalVisa.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                            Text('💵 كاش: ${grandTotalCash.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                            Text('💳 فيزا: ${grandTotalVisa.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                            Text('📑 إجمالي الجلسات: ${historySnapshot.data!.docs.length}', style: const TextStyle(color: Colors.white70, fontSize: 11)),
                           ],
                         ),
                       ],
                     ),
                   ),
-                );
-              },
+                ),
+
+                // قائمة الأشهر التفصيلية
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    itemCount: sortedKeys.length,
+                    itemBuilder: (context, index) {
+                      String key = sortedKeys[index];
+                      MonthSummary summary = monthlyData[key]!;
+                      double net = summary.totalRevenue - summary.totalExpenses;
+
+                      return Card(
+                        margin: const EdgeInsets.symmetric(vertical: 5, horizontal: 4),
+                        elevation: 2,
+                        child: Padding(
+                          padding: const EdgeInsets.all(12.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('📅 ${summary.monthName}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.blueGrey)),
+                                  Text('الصافي: ${net.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.teal)),
+                                ],
+                              ),
+                              const Divider(height: 12),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text('💵 كاش: ${summary.totalCash.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                                  Text('💳 فيزا: ${summary.totalVisa.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12)),
+                                  Text('💸 مصاريف: ${summary.totalExpenses.toStringAsFixed(2)}', style: const TextStyle(fontSize: 12, color: Colors.red)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             );
           },
         );
@@ -231,7 +318,7 @@ class MonthlyReportView extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           '${amount.toStringAsFixed(2)} ج.م',
-          style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.bold),
+          style: TextStyle(color: color, fontSize: 14, fontWeight: FontWeight.bold),
         ),
       ],
     );
