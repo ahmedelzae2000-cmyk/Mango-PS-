@@ -25,6 +25,85 @@ class ShiftScreen extends StatelessWidget {
     });
   }
 
+  // دالة تعديل قيمة الفاتورة وتحديث الوردية النشطة
+  void _showEditCostDialog(
+    BuildContext context, {
+    required String historyId,
+    required double currentCost,
+    required String paymentMethod,
+  }) {
+    final costController = TextEditingController(text: currentCost.toStringAsFixed(2));
+    final db = FirebaseFirestore.instance;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E1E1E),
+        title: const Text('تعديل قيمة الفاتورة', style: TextStyle(color: Colors.white)),
+        content: TextField(
+          controller: costController,
+          keyboardType: TextInputType.number,
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'المبلغ الجديد (ج.م)',
+            labelStyle: TextStyle(color: Colors.grey),
+            enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+            focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.deepPurple)),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.deepPurple, foregroundColor: Colors.white),
+            onPressed: () async {
+              double? newCost = double.tryParse(costController.text);
+              if (newCost == null || newCost < 0) return;
+
+              double diff = newCost - currentCost;
+              Navigator.pop(ctx);
+
+              // 1. تعديل الجلسة في سجل التاريخ
+              await db.collection('history').doc(historyId).update({'cost': newCost});
+
+              // 2. تحديث الوردية النشطة بالفرق المالي
+              var activeShiftQuery = await db.collection('shifts').where('isActive', isEqualTo: true).get();
+              if (activeShiftQuery.docs.isNotEmpty) {
+                var shiftDoc = activeShiftQuery.docs.first;
+                var shiftData = shiftDoc.data();
+
+                double currentTotal = (shiftData['totalRevenue'] ?? 0.0).toDouble();
+                double currentCash = (shiftData['cashRevenue'] ?? 0.0).toDouble();
+                double currentVisa = (shiftData['visaRevenue'] ?? 0.0).toDouble();
+
+                if (paymentMethod == 'كاش') {
+                  currentCash += diff;
+                } else {
+                  currentVisa += diff;
+                }
+
+                await db.collection('shifts').doc(shiftDoc.id).update({
+                  'totalRevenue': currentTotal + diff,
+                  'cashRevenue': currentCash < 0 ? 0.0 : currentCash,
+                  'visaRevenue': currentVisa < 0 ? 0.0 : currentVisa,
+                });
+              }
+
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('تم تعديل الفاتورة وتحديث الوردية والتقارير بنجاح')),
+                );
+              }
+            },
+            child: const Text('حفظ التعديل'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final FirebaseFirestore db = FirebaseFirestore.instance;
@@ -148,17 +227,17 @@ class ShiftScreen extends StatelessWidget {
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('💰 الإجمالي: $total ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple, fontSize: 13)),
-                                    Text('💎 الصافي: $netTotal ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 13)),
+                                    Text('💰 الإجمالي: ${total.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.deepPurple, fontSize: 13)),
+                                    Text('💎 الصافي: ${netTotal.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal, fontSize: 13)),
                                   ],
                                 ),
                                 const SizedBox(height: 4),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('💵 كاش: $cash ج.م', style: const TextStyle(fontSize: 12)),
-                                    Text('💳 فيزا: $visa ج.م', style: const TextStyle(fontSize: 12)),
-                                    Text('💸 مصاريف: $shiftExpenses ج.م', style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    Text('💵 كاش: ${cash.toStringAsFixed(2)} ج.م', style: const TextStyle(fontSize: 12)),
+                                    Text('💳 فيزا: ${visa.toStringAsFixed(2)} ج.م', style: const TextStyle(fontSize: 12)),
+                                    Text('💸 مصاريف: ${shiftExpenses.toStringAsFixed(2)} ج.م', style: const TextStyle(color: Colors.red, fontSize: 12, fontWeight: FontWeight.bold)),
                                   ],
                                 ),
                               ],
@@ -212,10 +291,26 @@ class ShiftScreen extends StatelessWidget {
                           child: Icon(Icons.check, color: Colors.white, size: 16),
                         ),
                         title: Text(deviceName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('الدفع: $paymentMethod - التكلفة: $cost ج.م | بواسطة: $closedBy'),
-                        trailing: isManager
-                            ? IconButton(
-                                icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                        subtitle: Text('الدفع: $paymentMethod - التكلفة: ${cost.toStringAsFixed(2)} ج.م | بواسطة: $closedBy'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (isManager) ...[
+                              // زر التعديل
+                              IconButton(
+                                icon: const Icon(Icons.edit, color: Colors.blue, size: 18),
+                                onPressed: () {
+                                  _showEditCostDialog(
+                                    context,
+                                    historyId: historyId,
+                                    currentCost: cost,
+                                    paymentMethod: paymentMethod,
+                                  );
+                                },
+                              ),
+                              // زر الحذف
+                              IconButton(
+                                icon: const Icon(Icons.delete, color: Colors.red, size: 18),
                                 onPressed: () {
                                   showDialog(
                                     context: context,
@@ -269,8 +364,11 @@ class ShiftScreen extends StatelessWidget {
                                     ),
                                   );
                                 },
-                              )
-                            : Text('$cost ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14)),
+                              ),
+                            ] else
+                              Text('${cost.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: 14)),
+                          ],
+                        ),
                       ),
                     );
                   },
@@ -304,4 +402,3 @@ class ShiftScreen extends StatelessWidget {
     );
   }
 }
- 
