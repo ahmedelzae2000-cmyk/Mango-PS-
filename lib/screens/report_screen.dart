@@ -35,7 +35,7 @@ class ReportScreen extends StatelessWidget {
   }
 }
 
-// ================= 1. التقرير اليومي (الجلسات والمصاريف بالتاريخ) =================
+// ================= 1. التقرير اليومي المفصل =================
 class DailyReportView extends StatelessWidget {
   const DailyReportView({super.key});
 
@@ -52,7 +52,6 @@ class DailyReportView extends StatelessWidget {
         ),
         const SizedBox(height: 10),
 
-        // عرض الجلسات المنتهية مع تواريخها
         StreamBuilder<QuerySnapshot>(
           stream: db.collection('history').orderBy('timestamp', descending: true).snapshots(),
           builder: (context, snapshot) {
@@ -90,58 +89,12 @@ class DailyReportView extends StatelessWidget {
             );
           },
         ),
-
-        const SizedBox(height: 20),
-        const Text(
-          'المصاريف والسلف المسجلة',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.redAccent),
-        ),
-        const SizedBox(height: 10),
-
-        // عرض المصاريف اليومية
-        StreamBuilder<QuerySnapshot>(
-          stream: db.collection('expenses').orderBy('date', descending: true).snapshots(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-            final docs = snapshot.data!.docs;
-
-            if (docs.isEmpty) {
-              return const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('لا توجد مصاريف مسجلة')));
-            }
-
-            return ListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: docs.length,
-              itemBuilder: (context, index) {
-                var data = docs[index].data() as Map<String, dynamic>;
-                String title = data['title'] ?? '';
-                double amount = (data['amount'] ?? 0.0).toDouble();
-                String type = data['type'] ?? 'مصروف';
-                Timestamp? time = data['date'];
-                String formattedDate = time != null 
-                    ? DateFormat('yyyy-MM-dd – hh:mm a').format(time.toDate()) 
-                    : '';
-
-                return Card(
-                  margin: const EdgeInsets.symmetric(vertical: 4),
-                  child: ListTile(
-                    leading: Icon(type == 'مصروف' ? Icons.money_off : Icons.person_pin, color: Colors.red),
-                    title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('$type | $formattedDate'),
-                    trailing: Text('- ${amount.toStringAsFixed(2)} ج.م', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.red)),
-                  ),
-                );
-              },
-            );
-          },
-        ),
       ],
     );
   }
 }
 
-// ================= 2. التقرير الشهري (تجميع الورديات والمصاريف حسب كل شهر لوحده) =================
+// ================= 2. التقرير الشهري المختصر (معتمد على جدول الأرشيف والمصاريف) =================
 class MonthlyReportView extends StatelessWidget {
   const MonthlyReportView({super.key});
 
@@ -150,60 +103,61 @@ class MonthlyReportView extends StatelessWidget {
     final db = FirebaseFirestore.instance;
 
     return StreamBuilder<QuerySnapshot>(
-      stream: db.collection('shifts').orderBy('startTime', descending: true).snapshots(),
-      builder: (context, shiftSnapshot) {
-        if (!shiftSnapshot.hasData) return const Center(child: CircularProgressIndicator());
-        final shifts = shiftSnapshot.data!.docs;
-
-        if (shifts.isEmpty) {
-          return const Center(child: Text('لا توجد ورديات مسجلة'));
-        }
+      stream: db.collection('history').snapshots(), // الاعتماد على جدول الجلسات المكتملة
+      builder: (context, historySnapshot) {
+        if (!historySnapshot.hasData) return const Center(child: CircularProgressIndicator());
+        final historyDocs = historySnapshot.data!.docs;
 
         return StreamBuilder<QuerySnapshot>(
           stream: db.collection('expenses').snapshots(),
           builder: (context, expenseSnapshot) {
-            // خريطة لتجميع بيانات كل شهر لوحده (المفتاح: "YYYY-MM")
             Map<String, MonthSummary> monthlyData = {};
 
-            // 1. تجميع الورديات حسب الشهر والسنة
-            for (var shiftDoc in shifts) {
-              var data = shiftDoc.data() as Map<String, dynamic>;
-              Timestamp? startTime = data['startTime'];
-              if (startTime == null) continue;
+            // 1. تجميع إيرادات الجلسات حسب الشهر
+            for (var doc in historyDocs) {
+              var data = doc.data() as Map<String, dynamic>;
+              Timestamp? time = data['timestamp'];
+              if (time == null) continue;
 
-              DateTime date = startTime.toDate();
-              String monthKey = DateFormat('yyyy-MM').format(date); // مثال: 2026-09
+              DateTime date = time.toDate();
+              String monthKey = DateFormat('yyyy-MM').format(date);
+              double cost = (data['cost'] ?? 0.0).toDouble();
+              String payment = data['paymentMethod'] ?? 'كاش';
 
-              monthlyData.putIfAbsent(monthKey, () => MonthSummary(monthName: DateFormat('MMMM yyyy', 'ar').format(date)));
+              monthlyData.putIfAbsent(
+                monthKey, 
+                () => MonthSummary(monthName: DateFormat('MMMM yyyy', 'ar').format(date))
+              );
 
-              monthlyData[monthKey]!.totalRevenue += (data['totalRevenue'] ?? 0.0).toDouble();
-              monthlyData[monthKey]!.totalCash += (data['cashRevenue'] ?? 0.0).toDouble();
-              monthlyData[monthKey]!.totalVisa += (data['visaRevenue'] ?? 0.0).toDouble();
+              monthlyData[monthKey]!.totalRevenue += cost;
+              if (payment.contains('فيزا')) {
+                monthlyData[monthKey]!.totalVisa += cost;
+              } else {
+                monthlyData[monthKey]!.totalCash += cost;
+              }
               monthlyData[monthKey]!.shiftCount += 1;
             }
 
-            // 2. تجميع المصاريف حسب الشهر والسنة
+            // 2. تجميع المصاريف حسب الشهر
             if (expenseSnapshot.hasData) {
-              for (var expDoc in expenseSnapshot.data!.docs) {
-                var expData = expDoc.data() as Map<String, dynamic>;
-                Timestamp? expTime = expData['date'];
-                if (expTime == null) continue;
+              for (var doc in expenseSnapshot.data!.docs) {
+                var data = doc.data() as Map<String, dynamic>;
+                Timestamp? time = data['date'];
+                if (time == null) continue;
 
-                DateTime date = expTime.toDate();
+                DateTime date = time.toDate();
                 String monthKey = DateFormat('yyyy-MM').format(date);
-                double amount = (expData['amount'] ?? 0.0).toDouble();
+                double amount = (data['amount'] ?? 0.0).toDouble();
 
-                if (monthlyData.containsKey(monthKey)) {
-                  monthlyData[monthKey]!.totalExpenses += amount;
-                } else {
-                  String monthName = DateFormat('MMMM yyyy', 'ar').format(date);
-                  monthlyData.putIfAbsent(monthKey, () => MonthSummary(monthName: monthName));
-                  monthlyData[monthKey]!.totalExpenses += amount;
-                }
+                monthlyData.putIfAbsent(
+                  monthKey, 
+                  () => MonthSummary(monthName: DateFormat('MMMM yyyy', 'ar').format(date))
+                );
+
+                monthlyData[monthKey]!.totalExpenses += amount;
               }
             }
 
-            // ترتيب الشهور تنازلياً (الأحدث أولاً)
             var sortedKeys = monthlyData.keys.toList()..sort((a, b) => b.compareTo(a));
 
             if (sortedKeys.isEmpty) {
@@ -228,7 +182,6 @@ class MonthlyReportView extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        // عنوان الشهر وعدد الورديات
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
@@ -237,14 +190,12 @@ class MonthlyReportView extends StatelessWidget {
                               style: const TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             Text(
-                              'عدد الورديات: ${summary.shiftCount}',
+                              'عدد الجلسات: ${summary.shiftCount}',
                               style: const TextStyle(color: Colors.white70, fontSize: 12),
                             ),
                           ],
                         ),
                         const Divider(color: Colors.white24, height: 20),
-                        
-                        // الإحصائيات المالية للشهر
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
@@ -254,8 +205,6 @@ class MonthlyReportView extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        
-                        // تفاصيل الكاش والفيزا
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
@@ -289,7 +238,6 @@ class MonthlyReportView extends StatelessWidget {
   }
 }
 
-// نموذج مساعد لتبيان ملخص بيانات الشهر الواحد
 class MonthSummary {
   String monthName;
   double totalRevenue;
