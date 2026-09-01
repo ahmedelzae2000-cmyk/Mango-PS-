@@ -22,7 +22,7 @@ void main() async {
     ),
   );
 
-  // 2. التحقق من حالة تسجيل الدخول المحفوظة
+  // 2. التحقق من حالة تسجيل الدخول المحفوظة مسبقاً
   final prefs = await SharedPreferences.getInstance();
   bool isLoggedIn = prefs.getBool('is_logged_in') ?? false;
 
@@ -52,10 +52,10 @@ class MyApp extends StatelessWidget {
             ),
             darkTheme: ThemeData(
               brightness: Brightness.dark,
-              primarySwatch: Colors.darkTheme == null ? Colors.deepPurple : Colors.deepPurple,
+              primarySwatch: Colors.deepPurple,
               useMaterial3: true,
             ),
-            // إذا كان مسجلاً للدخول ينتقل للرئيسية مباشرة، وإلا يفتح شاشة الدخول
+            // إذا كان مسجلاً للدخول مسبقاً، اذهب للرئيسية مباشرة، وإلا اذهب لشاشة الدخول
             home: isLoggedIn ? const HomeScreen() : const LoginScreen(),
             routes: {
               '/home': (context) => const HomeScreen(),
