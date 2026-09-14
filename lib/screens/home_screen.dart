@@ -1,4 +1,4 @@
-import 'dart:async';
+import 'dart0:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -39,45 +39,34 @@ class _HomeScreenState extends State<HomeScreen> {
       _selectedIndex = 0;
     }
 
-    DecorationImage? bgImage;
-    if (provider.backgroundType == 'صورة مخصصة' && provider.customImagePath != null) {
-      bgImage = DecorationImage(
-        image: FileImage(File(provider.customImagePath!)),
-        fit: BoxFit.cover,
-      );
-    } else if (provider.backgroundType == 'داكن أنيق') {
-      bgImage = const DecorationImage(
-        image: AssetImage('assets/bg.jpg'),
-        fit: BoxFit.cover,
-      );
-    }
-
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Manga PS (${provider.userRole})'),
-        elevation: 0,
-        backgroundColor: Colors.black.withOpacity(0.4),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: 'تسجيل الخروج',
-            onPressed: () {
-              provider.setUserRole('موظف');
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
-            },
-          ),
-        ],
-      ),
+      backgroundColor: const Color(0xFF0B1120), // لون خلفية فرعي داكن وجذاب
       body: Stack(
         children: [
-          if (bgImage != null) Container(decoration: BoxDecoration(image: bgImage)),
-          Container(
-            color: provider.appMode == 'داكن (Dark)'
-                ? Colors.black.withOpacity(0.5)
-                : Colors.white.withOpacity(0.1),
+          // خلفية التدرج المتوهج
+          Positioned(
+            top: -50,
+            right: -50,
+            child: Container(
+              width: 250,
+              height: 250,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0x3300D2FF),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: 100,
+            left: -50,
+            child: Container(
+              width: 200,
+              height: 200,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: Color(0x229D4EDD),
+              ),
+            ),
           ),
           SafeArea(
             child: IndexedStack(
@@ -90,9 +79,9 @@ class _HomeScreenState extends State<HomeScreen> {
       bottomNavigationBar: isManager
           ? BottomNavigationBar(
               currentIndex: _selectedIndex >= pages.length ? 0 : _selectedIndex,
-              selectedItemColor: Colors.deepPurpleAccent,
-              unselectedItemColor: Colors.grey,
-              backgroundColor: Colors.black.withOpacity(0.8),
+              selectedItemColor: const Color(0xFF00D2FF),
+              unselectedItemColor: Colors.white38,
+              backgroundColor: const Color(0xFF0D1527),
               type: BottomNavigationBarType.fixed,
               onTap: (index) => setState(() => _selectedIndex = index),
               items: const [
@@ -116,111 +105,232 @@ class DevicesPage extends StatelessWidget {
     final provider = Provider.of<DeviceProvider>(context);
     final bool isManager = provider.userRole == 'مدير';
 
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        title: const Text(
-          'Manga PS 🎮',
-          style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 0.5),
-        ),
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
+    return SingleChildScrollView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. الهيدر العلوي (معلومات الشيفت)
+          _buildHeader(context, provider),
+
+          const SizedBox(height: 16),
+
+          // 2. شبكة الأجهزة المضافة
+          provider.devices.isEmpty
+              ? const Container(
+                  height: 200,
+                  child: Center(
+                    child: Text(
+                      'لا يوجد أجهزة مضافة حالياً',
+                      style: TextStyle(color: Colors.white54, fontSize: 16),
+                    ),
+                  ),
+                )
+              : GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: 0.58, // نسبة متناسقة لعرض البيانات كاملة
+                  ),
+                  itemCount: provider.devices.length,
+                  itemBuilder: (context, index) {
+                    return DeviceGridCard(
+                      key: ValueKey(provider.devices[index].id),
+                      device: provider.devices[index],
+                    );
+                  },
+                ),
+
+          const SizedBox(height: 20),
+
+          // 3. قسم ملخص الشيفت الحالي
+          _buildShiftSummary(),
+
+          const SizedBox(height: 16),
+
+          // 4. أزرار الإجراءات السريعة (إنهاء، إضافة مصروف...)
+          _buildQuickActions(),
+
+          const SizedBox(height: 20),
+        ],
       ),
-      body: provider.devices.isEmpty
-          ? const Center(
-              child: Text(
-                'لا يوجد أجهزة مضافة حالياً',
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-            )
-          : GridView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 10,
-                mainAxisSpacing: 10,
-                childAspectRatio: 0.68, // تعديل الارتفاع ليتناسب مع الزر الجديد
-              ),
-              itemCount: provider.devices.length,
-              itemBuilder: (context, index) {
-                return DeviceGridCard(
-                  key: ValueKey(provider.devices[index].id),
-                  device: provider.devices[index],
-                );
-              },
-            ),
-      floatingActionButton: isManager
-          ? FloatingActionButton(
-              backgroundColor: Colors.deepPurple,
-              child: const Icon(Icons.add, color: Colors.white),
-              onPressed: () => _showAddDeviceDialog(context),
-            )
-          : null,
     );
   }
 
-  void _showAddDeviceDialog(BuildContext context) {
-    final nameController = TextEditingController();
-    final sPriceController = TextEditingController(text: '30');
-    final mPriceController = TextEditingController(text: '40');
-    String deviceType = 'PS4';
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('إضافة جهاز جديد'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
+  // ودجت الهيدر
+  Widget _buildHeader(BuildContext context, DeviceProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF151F32),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white10),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
             children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'اسم الجهاز'),
-              ),
-              const SizedBox(height: 10),
-              DropdownButtonFormField<String>(
-                value: deviceType,
-                decoration: const InputDecoration(labelText: 'النوع'),
-                items: ['PS4', 'PS5']
-                    .map((t) => DropdownMenuItem(value: t, child: Text(t)))
-                    .toList(),
-                onChanged: (v) {
-                  if (v != null) deviceType = v;
-                },
-              ),
-              TextField(
-                controller: sPriceController,
-                decoration: const InputDecoration(labelText: 'سعر الفردي'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: mPriceController,
-                decoration: const InputDecoration(labelText: 'سعر الزوجي'),
-                keyboardType: TextInputType.number,
+              const Icon(Icons.sports_esports, color: Color(0xFF00D2FF), size: 30),
+              const SizedBox(width: 8),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: const [
+                  Text(
+                    'إدارة محل البلايستيشن',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 15),
+                  ),
+                  Text(
+                    'Play • Game • Enjoy',
+                    style: TextStyle(color: Colors.white38, fontSize: 10),
+                  ),
+                ],
               ),
             ],
           ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final String name = nameController.text.trim();
-              if (name.isNotEmpty) {
-                double s = double.tryParse(sPriceController.text) ?? 30.0;
-                double m = double.tryParse(mPriceController.text) ?? 40.0;
-                Provider.of<DeviceProvider>(context, listen: false)
-                    .addDevice(name, deviceType, s, m);
-              }
-              Navigator.pop(ctx);
-            },
-            child: const Text('إضافة'),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: const [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.access_time, color: Colors.white70, size: 12),
+                    SizedBox(width: 4),
+                    Text('الشيفت الحالي',
+                        style: TextStyle(color: Colors.white70, fontSize: 10)),
+                  ],
+                ),
+                Text(
+                  '06:00 ص - 06:00 م',
+                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  '● مستمر',
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 10),
+                ),
+              ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  // ودجت ملخص الشيفت
+  Widget _buildShiftSummary() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Row(
+          children: [
+            Icon(Icons.bar_chart, color: Color(0xFF00D2FF), size: 18),
+            SizedBox(width: 6),
+            Text(
+              'ملخص الشيفت الحالي',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _buildStatItem('عدد الجلسات', '14', 'جلسة', Icons.sports_esports, Colors.purpleAccent),
+            _buildStatItem('إجمالي الإيرادات', '1,400', 'جنيه', Icons.account_balance_wallet, Colors.blueAccent),
+            _buildStatItem('صافي الشيفت', '1,250', 'جنيه', Icons.attach_money, Colors.greenAccent),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStatItem(String title, String value, String unit, IconData icon, Color color) {
+    return Expanded(
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 3),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        decoration: BoxDecoration(
+          color: const Color(0xFF151F32),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: 4),
+            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 9)),
+            const SizedBox(height: 2),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: value,
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
+                  ),
+                  TextSpan(
+                    text: ' $unit',
+                    style: const TextStyle(color: Colors.white38, fontSize: 8),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // أزرار التحكم السريع
+  Widget _buildQuickActions() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: 2,
+      childAspectRatio: 2.8,
+      crossAxisSpacing: 10,
+      mainAxisSpacing: 10,
+      children: [
+        _buildActionButton('إنهاء الشيفت', Icons.power_settings_new, const Color(0xFF5C1D24)),
+        _buildActionButton('إضافة مصروف', Icons.receipt_long, const Color(0xFF5C3B12)),
+        _buildActionButton('إضافة إيراد يدوي', Icons.add_circle_outline, const Color(0xFF134E35)),
+        _buildActionButton('سجل الأيام السابقة', Icons.history, const Color(0xFF3B1D5C)),
+      ],
+    );
+  }
+
+  Widget _buildActionButton(String title, IconData icon, Color bg) {
+    return Container(
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.white12),
+      ),
+      child: InkWell(
+        onTap: () {},
+        borderRadius: BorderRadius.circular(12),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          ],
+        ),
       ),
     );
   }
@@ -271,7 +381,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   Widget build(BuildContext context) {
     final device = widget.device;
     final provider = Provider.of<DeviceProvider>(context, listen: false);
-    final bool isManager = provider.userRole == 'مدير';
 
     final double activePrice =
         device.mode == 'single' ? device.singlePrice : device.multiPrice;
@@ -300,232 +409,182 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     String formattedTime =
         '${twoDigits(elapsed.inHours)}:${twoDigits(elapsed.inMinutes % 60)}:${twoDigits(elapsed.inSeconds % 60)}';
 
-    Color borderColor = device.isOccupied
-        ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent)
-        : Colors.white24;
+    Color cardBorder = device.isOccupied
+        ? (device.isPaused ? Colors.orangeAccent : const Color(0xFF00D2FF))
+        : Colors.white10;
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.08),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor, width: 1.5),
-            boxShadow: [
-              if (device.isOccupied)
-                BoxShadow(
-                  color: borderColor.withOpacity(0.25),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                ),
-            ],
-          ),
-          padding: const EdgeInsets.all(10.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFF151F32),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: cardBorder, width: 1.2),
+        boxShadow: [
+          if (device.isOccupied)
+            BoxShadow(
+              color: cardBorder.withOpacity(0.15),
+              blurRadius: 10,
+              spreadRadius: 1,
+            )
+        ],
+      ),
+      padding: const EdgeInsets.all(8.0),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          // 1. رأس الكارت (الاسم والنوع)
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // 1. اسم الجهاز وأيقونة الحذف
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      device.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ),
-                  if (isManager)
-                    InkWell(
-                      onTap: () => _confirmDeleteDialog(context, device, provider),
-                      child: const Icon(Icons.delete_outline,
-                          color: Colors.redAccent, size: 18),
-                    ),
-                ],
-              ),
-
-              // 2. نوع الجهاز
-              Center(child: _buildDeviceTypeBadge(device.type)),
-
-              // 3. العداد والمبلغ المالي
-              Center(
-                child: Column(
-                  children: [
-                    Text(
-                      device.isOccupied ? formattedTime : '00:00:00',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                        color: device.isOccupied
-                            ? (device.isPaused
-                                ? Colors.orangeAccent
-                                : Colors.cyanAccent)
-                            : Colors.white54,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${currentCost.toStringAsFixed(2)} ج.م',
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.amber,
-                      ),
-                    ),
-                  ],
+              Text(
+                device.name,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
               ),
-
-              // 4. أزرار التبديل (زوجي / فردي)
               Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.black38,
-                  borderRadius: BorderRadius.circular(6),
+                  color: Colors.white.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  children: [
-                    _buildModeButton('زوجي', device.mode == 'multi', () {
-                      provider.toggleMode(device.id, 'multi');
-                    }),
-                    _buildModeButton('فردي', device.mode == 'single', () {
-                      provider.toggleMode(device.id, 'single');
-                    }),
-                  ],
+                child: Text(
+                  device.type,
+                  style: const TextStyle(
+                      color: Color(0xFF00D2FF),
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
                 ),
               ),
+            ],
+          ),
 
-              // 5. الأزرار التحكمية (إيقاف مؤقت + تشغيل/إنهاء المحاسبة)
-              if (device.isOccupied)
-                Row(
-                  children: [
-                    // زر الإيقاف المؤقت / الاستئناف المباشر
-                    IconButton(
-                      constraints: const BoxConstraints(),
-                      padding: const EdgeInsets.all(4),
-                      style: IconButton.styleFrom(
-                        backgroundColor: device.isPaused
-                            ? Colors.greenAccent.withOpacity(0.2)
-                            : Colors.orangeAccent.withOpacity(0.2),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(6)),
+          // 2. الأسعار (سنجل / مالتي)
+          Container(
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1527),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildPriceHeader('سنجل', device.singlePrice),
+                const SizedBox(
+                    height: 15, child: VerticalDivider(color: Colors.white12)),
+                _buildPriceHeader('مالتي', device.multiPrice),
+              ],
+            ),
+          ),
+
+          // 3. الوقت والمبلغ
+          Column(
+            children: [
+              Text(
+                device.isOccupied ? formattedTime : '00:00:00',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: device.isOccupied
+                      ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent)
+                      : Colors.white38,
+                ),
+              ),
+              Text(
+                '${currentCost.toStringAsFixed(2)} جنيه',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.amberAccent,
+                ),
+              ),
+            ],
+          ),
+
+          // 4. أزرار التبديل (سنجل / مالتي)
+          Container(
+            height: 26,
+            decoration: BoxDecoration(
+              color: Colors.black26,
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: Row(
+              children: [
+                _buildModeButton('سنجل', device.mode == 'single', () {
+                  provider.toggleMode(device.id, 'single');
+                }),
+                _buildModeButton('مالتي', device.mode == 'multi', () {
+                  provider.toggleMode(device.id, 'multi');
+                }),
+              ],
+            ),
+          ),
+
+          // 5. زر التحكم الرئيسي (إبدأ / إنهاء)
+          SizedBox(
+            width: double.infinity,
+            height: 30,
+            child: device.isOccupied
+                ? Row(
+                    children: [
+                      // زر إيقاف مؤقت
+                      IconButton(
+                        constraints: const BoxConstraints(),
+                        padding: EdgeInsets.zero,
+                        icon: Icon(
+                          device.isPaused ? Icons.play_arrow : Icons.pause,
+                          color: device.isPaused ? Colors.green : Colors.orange,
+                          size: 20,
+                        ),
+                        onPressed: () {
+                          provider.togglePauseSession(device.id, device.isPaused);
+                        },
                       ),
-                      icon: Icon(
-                        device.isPaused ? Icons.play_arrow : Icons.pause,
-                        color: device.isPaused
-                            ? Colors.greenAccent
-                            : Colors.orangeAccent,
-                        size: 20,
-                      ),
-                      onPressed: () {
-                        provider.togglePauseSession(device.id, device.isPaused);
-                      },
-                    ),
-                    const SizedBox(width: 6),
-                    // زر المحاسبة وإيقاف الجلسة
-                    Expanded(
-                      child: SizedBox(
-                        height: 32,
+                      const SizedBox(width: 4),
+                      // زر إنهاء الجلسة
+                      Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.redAccent.withOpacity(0.8),
-                            foregroundColor: Colors.white,
+                            backgroundColor: const Color(0xFFDC2626),
                             shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(6)),
                             padding: EdgeInsets.zero,
                           ),
-                          onPressed: () {
-                            _showFinishDialog(
-                                context, device, currentCost, provider);
-                          },
-                          child: const Text(
-                            'إنهاء ومحاسبة',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.bold),
-                          ),
+                          onPressed: () {},
+                          child: const Text('إنهاء الجلسة',
+                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
-                    ),
-                  ],
-                )
-              else
-                // زر التشغيل لجلسة جديدة
-                SizedBox(
-                  width: double.infinity,
-                  height: 32,
-                  child: ElevatedButton(
+                    ],
+                  )
+                : ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.greenAccent.withOpacity(0.8),
-                      foregroundColor: Colors.white,
+                      backgroundColor: const Color(0xFF2563EB),
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(6)),
                       padding: EdgeInsets.zero,
                     ),
                     onPressed: () async {
-                      bool success =
-                          await provider.startSession(device.id, device.mode);
-                      if (!success && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content:
-                                Text('لا يمكن بدء الجلسة، يجب فتح وردية أولاً!'),
-                          ),
-                        );
-                      }
+                      await provider.startSession(device.id, device.mode);
                     },
-                    child: const Text(
-                      'تشغيل الجلسة',
-                      style: TextStyle(
-                          fontSize: 12, fontWeight: FontWeight.bold),
-                    ),
+                    child: const Text('إبدأ جلسة',
+                        style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
-                ),
-            ],
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildDeviceTypeBadge(String type) {
-    bool isPS5 = type.toUpperCase() == 'PS5';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-      decoration: BoxDecoration(
-        color: isPS5
-            ? Colors.blue.withOpacity(0.2)
-            : Colors.indigo.withOpacity(0.2),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isPS5 ? Colors.blueAccent : Colors.indigoAccent,
-          width: 1,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.sports_esports,
-            size: 14,
-            color: isPS5 ? Colors.lightBlueAccent : Colors.indigoAccent,
-          ),
-          const SizedBox(width: 4),
-          Text(
-            type,
-            style: TextStyle(
-              color: isPS5 ? Colors.lightBlueAccent : Colors.white,
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-        ],
-      ),
+  Widget _buildPriceHeader(String title, double price) {
+    return Column(
+      children: [
+        Text(title, style: const TextStyle(color: Colors.white38, fontSize: 9)),
+        Text('${price.toInt()} ج',
+            style: const TextStyle(
+                color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 
@@ -534,148 +593,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 4),
           decoration: BoxDecoration(
-            color: isSelected
-                ? Colors.deepPurpleAccent.withOpacity(0.7)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Center(
-            child: Text(
-              title,
-              style: TextStyle(
-                color: isSelected ? Colors.white : Colors.white60,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _confirmDeleteDialog(
-      BuildContext context, DeviceModel device, DeviceProvider provider) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('حذف الجهاز ${device.name}'),
-        content: const Text('هل أنت متأكد من حذف هذا الجهاز نهائياً؟'),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء')),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: () {
-              provider.deleteDevice(device.id);
-              Navigator.pop(ctx);
-            },
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showFinishDialog(BuildContext context, DeviceModel device,
-      double calculatedCost, DeviceProvider provider) {
-    final costController =
-        TextEditingController(text: calculatedCost.toStringAsFixed(2));
-    String paymentMethod = 'كاش';
-    bool isProcessing = false; // حماية ضد الضغط المكرر
-
-    showDialog(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          backgroundColor: const Color(0xFF1E1E1E),
-          title: Text(
-            'إنهاء ومحاسبة: ${device.name}',
-            style: const TextStyle(color: Colors.white),
-          ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: costController,
-                style: const TextStyle(color: Colors.white),
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'المبلغ النهائي (تعديل السعر ج.م)',
-                  labelStyle: TextStyle(color: Colors.grey),
-                  enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.deepPurple)),
-                ),
-              ),
-              const SizedBox(height: 15),
-              const Text('طريقة الدفع',
-                  style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 5),
-              DropdownButtonFormField<String>(
-                value: paymentMethod,
-                dropdownColor: const Color(0xFF1E1E1E),
-                style: const TextStyle(color: Colors.white),
-                decoration: const InputDecoration(
-                  enabledBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.grey)),
-                  focusedBorder: OutlineInputBorder(
-                      borderSide: BorderSide(color: Colors.deepPurple)),
-                ),
-                items: ['كاش', 'فيزا']
-                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                    .toList(),
-                onChanged: (val) {
-                  if (val != null) setDialogState(() => paymentMethod = val);
-                },
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('إلغاء', style: TextStyle(color: Colors.grey)),
-            ),
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.deepPurple,
-                foregroundColor: Colors.white,
-              ),
-              onPressed: isProcessing
-                  ? null
-                  : () async {
-                      setDialogState(() => isProcessing = true);
-
-                      double parsedVal =
-                          double.tryParse(costController.text) ?? calculatedCost;
-                      double finalAmount =
-                          parsedVal >= 0 ? parsedVal : calculatedCost;
-
-                      // إغلاق النافذة فوراً لتفادي التهنيج والضغط المكرر
-                      Navigator.pop(ctx);
-
-                      // إرسال طلب الإنهاء في الخلفية
-                      await provider.stopSession(
-                        device.id,
-                        device.name,
-                        paymentMethod,
-                        finalAmount,
-                      );
-                    },
-              child: const Text('حفظ وتسجيل الفاتورة'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
- 
+            color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
+      
