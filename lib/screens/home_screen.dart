@@ -102,23 +102,22 @@ class DevicesPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = Provider.of<DeviceProvider>(context);
-    final bool isManager = provider.userRole == 'مدير';
 
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _buildHeader(context, provider),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           provider.devices.isEmpty
               ? Container(
-                  height: 200,
+                  height: 150,
                   alignment: Alignment.center,
                   child: const Text(
                     'لا يوجد أجهزة مضافة حالياً',
-                    style: TextStyle(color: Colors.white54, fontSize: 16),
+                    style: TextStyle(color: Colors.white54, fontSize: 14),
                   ),
                 )
               : GridView.builder(
@@ -126,9 +125,9 @@ class DevicesPage extends StatelessWidget {
                   physics: const NeverScrollableScrollPhysics(),
                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                     crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 0.58,
+                    crossAxisSpacing: 8,
+                    mainAxisSpacing: 8,
+                    childAspectRatio: 0.78, // زيادة تم تعديلها لتصغير ارتفاع المربع
                   ),
                   itemCount: provider.devices.length,
                   itemBuilder: (context, index) {
@@ -138,11 +137,11 @@ class DevicesPage extends StatelessWidget {
                     );
                   },
                 ),
-          const SizedBox(height: 20),
-          _buildShiftSummary(),
           const SizedBox(height: 16),
+          _buildShiftSummary(),
+          const SizedBox(height: 12),
           _buildQuickActions(),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -150,10 +149,10 @@ class DevicesPage extends StatelessWidget {
 
   Widget _buildHeader(BuildContext context, DeviceProvider provider) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: const Color(0xFF151F32),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white10),
       ),
       child: Row(
@@ -161,7 +160,7 @@ class DevicesPage extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.sports_esports, color: Color(0xFF00D2FF), size: 30),
+              const Icon(Icons.sports_esports, color: Color(0xFF00D2FF), size: 26),
               const SizedBox(width: 8),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,21 +170,21 @@ class DevicesPage extends StatelessWidget {
                     style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
-                        fontSize: 15),
+                        fontSize: 14),
                   ),
                   Text(
                     'Play • Game • Enjoy',
-                    style: TextStyle(color: Colors.white38, fontSize: 10),
+                    style: TextStyle(color: Colors.white38, fontSize: 9),
                   ),
                 ],
               ),
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
               color: Colors.black26,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(8),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -193,19 +192,19 @@ class DevicesPage extends StatelessWidget {
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.access_time, color: Colors.white70, size: 12),
-                    SizedBox(width: 4),
+                    Icon(Icons.access_time, color: Colors.white70, size: 10),
+                    SizedBox(width: 3),
                     Text('الشيفت الحالي',
-                        style: TextStyle(color: Colors.white70, fontSize: 10)),
+                        style: TextStyle(color: Colors.white70, fontSize: 9)),
                   ],
                 ),
                 Text(
                   '06:00 ص - 06:00 م',
-                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
                 Text(
                   '● مستمر',
-                  style: TextStyle(color: Colors.greenAccent, fontSize: 10),
+                  style: TextStyle(color: Colors.greenAccent, fontSize: 9),
                 ),
               ],
             ),
@@ -221,18 +220,18 @@ class DevicesPage extends StatelessWidget {
       children: [
         Row(
           children: const [
-            Icon(Icons.bar_chart, color: Color(0xFF00D2FF), size: 18),
+            Icon(Icons.bar_chart, color: Color(0xFF00D2FF), size: 16),
             SizedBox(width: 6),
             Text(
               'ملخص الشيفت الحالي',
               style: TextStyle(
                   color: Colors.white,
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold),
             ),
           ],
         ),
-        const SizedBox(height: 10),
+        const SizedBox(height: 8),
         Row(
           children: [
             _buildStatItem('عدد الجلسات', '14', 'جلسة', Icons.sports_esports, Colors.purpleAccent),
@@ -247,29 +246,29 @@ class DevicesPage extends StatelessWidget {
   Widget _buildStatItem(String title, String value, String unit, IconData icon, Color color) {
     return Expanded(
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 3),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 2),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
         decoration: BoxDecoration(
           color: const Color(0xFF151F32),
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(10),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 18),
-            const SizedBox(height: 4),
-            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 9)),
+            Icon(icon, color: color, size: 16),
+            const SizedBox(height: 3),
+            Text(title, style: const TextStyle(color: Colors.white54, fontSize: 8)),
             const SizedBox(height: 2),
             RichText(
               text: TextSpan(
                 children: [
                   TextSpan(
                     text: value,
-                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
+                    style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 12),
                   ),
                   TextSpan(
                     text: ' $unit',
-                    style: const TextStyle(color: Colors.white38, fontSize: 8),
+                    style: const TextStyle(color: Colors.white38, fontSize: 7),
                   ),
                 ],
               ),
@@ -285,9 +284,9 @@ class DevicesPage extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       crossAxisCount: 2,
-      childAspectRatio: 2.8,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
+      childAspectRatio: 3.2,
+      crossAxisSpacing: 8,
+      mainAxisSpacing: 8,
       children: [
         _buildActionButton('إنهاء الشيفت', Icons.power_settings_new, const Color(0xFF5C1D24)),
         _buildActionButton('إضافة مصروف', Icons.receipt_long, const Color(0xFF5C3B12)),
@@ -301,18 +300,18 @@ class DevicesPage extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: Colors.white12),
       ),
       child: InkWell(
         onTap: () {},
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(width: 8),
-            Text(title, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            Icon(icon, color: Colors.white, size: 16),
+            const SizedBox(width: 6),
+            Text(title, style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -400,18 +399,10 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFF151F32),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cardBorder, width: 1.2),
-        boxShadow: [
-          if (device.isOccupied)
-            BoxShadow(
-              color: cardBorder.withOpacity(0.15),
-              blurRadius: 10,
-              spreadRadius: 1,
-            )
-        ],
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cardBorder, width: 1.0),
       ),
-      padding: const EdgeInsets.all(8.0),
+      padding: const EdgeInsets.all(6.0),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
@@ -421,39 +412,39 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               Text(
                 device.name,
                 style: const TextStyle(
-                  fontSize: 13,
+                  fontSize: 11,
                   fontWeight: FontWeight.bold,
                   color: Colors.white,
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: Colors.white.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   device.type,
                   style: const TextStyle(
                       color: Color(0xFF00D2FF),
-                      fontSize: 10,
+                      fontSize: 9,
                       fontWeight: FontWeight.bold),
                 ),
               ),
             ],
           ),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
+            padding: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
             decoration: BoxDecoration(
               color: const Color(0xFF0D1527),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildPriceHeader('سنجل', device.singlePrice),
                 const SizedBox(
-                    height: 15, child: VerticalDivider(color: Colors.white12)),
+                    height: 12, child: VerticalDivider(color: Colors.white12)),
                 _buildPriceHeader('مالتي', device.multiPrice),
               ],
             ),
@@ -463,7 +454,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               Text(
                 device.isOccupied ? formattedTime : '00:00:00',
                 style: TextStyle(
-                  fontSize: 16,
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
                   color: device.isOccupied
                       ? (device.isPaused ? Colors.orangeAccent : Colors.greenAccent)
@@ -473,7 +464,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               Text(
                 '${currentCost.toStringAsFixed(2)} جنيه',
                 style: const TextStyle(
-                  fontSize: 12,
+                  fontSize: 10,
                   fontWeight: FontWeight.bold,
                   color: Colors.amberAccent,
                 ),
@@ -481,10 +472,10 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
             ],
           ),
           Container(
-            height: 26,
+            height: 22,
             decoration: BoxDecoration(
               color: Colors.black26,
-              borderRadius: BorderRadius.circular(6),
+              borderRadius: BorderRadius.circular(5),
             ),
             child: Row(
               children: [
@@ -499,7 +490,7 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
           ),
           SizedBox(
             width: double.infinity,
-            height: 30,
+            height: 26,
             child: device.isOccupied
                 ? Row(
                     children: [
@@ -509,24 +500,24 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                         icon: Icon(
                           device.isPaused ? Icons.play_arrow : Icons.pause,
                           color: device.isPaused ? Colors.green : Colors.orange,
-                          size: 20,
+                          size: 16,
                         ),
                         onPressed: () {
                           provider.togglePauseSession(device.id, device.isPaused);
                         },
                       ),
-                      const SizedBox(width: 4),
+                      const SizedBox(width: 2),
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
                             backgroundColor: const Color(0xFFDC2626),
                             shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(6)),
+                                borderRadius: BorderRadius.circular(5)),
                             padding: EdgeInsets.zero,
                           ),
                           onPressed: () {},
                           child: const Text('إنهاء الجلسة',
-                              style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
+                              style: TextStyle(fontSize: 9, color: Colors.white, fontWeight: FontWeight.bold)),
                         ),
                       ),
                     ],
@@ -535,14 +526,14 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF2563EB),
                       shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(6)),
+                          borderRadius: BorderRadius.circular(5)),
                       padding: EdgeInsets.zero,
                     ),
                     onPressed: () async {
                       await provider.startSession(device.id, device.mode);
                     },
                     child: const Text('إبدأ جلسة',
-                        style: TextStyle(fontSize: 11, color: Colors.white, fontWeight: FontWeight.bold)),
+                        style: TextStyle(fontSize: 10, color: Colors.white, fontWeight: FontWeight.bold)),
                   ),
           ),
         ],
@@ -553,10 +544,10 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
   Widget _buildPriceHeader(String title, double price) {
     return Column(
       children: [
-        Text(title, style: const TextStyle(color: Colors.white38, fontSize: 9)),
+        Text(title, style: const TextStyle(color: Colors.white38, fontSize: 8)),
         Text('${price.toInt()} ج',
             style: const TextStyle(
-                color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -568,14 +559,14 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
-            borderRadius: BorderRadius.circular(5),
+            borderRadius: BorderRadius.circular(4),
           ),
           child: Center(
             child: Text(
               title,
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.white38,
-                fontSize: 10,
+                fontSize: 9,
                 fontWeight: FontWeight.bold,
               ),
             ),
