@@ -1,4 +1,4 @@
-import 'dart0:async';
+import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
@@ -40,10 +40,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0B1120), // لون خلفية فرعي داكن وجذاب
+      backgroundColor: const Color(0xFF0B1120),
       body: Stack(
         children: [
-          // خلفية التدرج المتوهج
           Positioned(
             top: -50,
             right: -50,
@@ -111,20 +110,15 @@ class DevicesPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 1. الهيدر العلوي (معلومات الشيفت)
           _buildHeader(context, provider),
-
           const SizedBox(height: 16),
-
-          // 2. شبكة الأجهزة المضافة
           provider.devices.isEmpty
-              ? const Container(
+              ? Container(
                   height: 200,
-                  child: Center(
-                    child: Text(
-                      'لا يوجد أجهزة مضافة حالياً',
-                      style: TextStyle(color: Colors.white54, fontSize: 16),
-                    ),
+                  alignment: Alignment.center,
+                  child: const Text(
+                    'لا يوجد أجهزة مضافة حالياً',
+                    style: TextStyle(color: Colors.white54, fontSize: 16),
                   ),
                 )
               : GridView.builder(
@@ -134,7 +128,7 @@ class DevicesPage extends StatelessWidget {
                     crossAxisCount: 2,
                     crossAxisSpacing: 12,
                     mainAxisSpacing: 12,
-                    childAspectRatio: 0.58, // نسبة متناسقة لعرض البيانات كاملة
+                    childAspectRatio: 0.58,
                   ),
                   itemCount: provider.devices.length,
                   itemBuilder: (context, index) {
@@ -144,24 +138,16 @@ class DevicesPage extends StatelessWidget {
                     );
                   },
                 ),
-
           const SizedBox(height: 20),
-
-          // 3. قسم ملخص الشيفت الحالي
           _buildShiftSummary(),
-
           const SizedBox(height: 16),
-
-          // 4. أزرار الإجراءات السريعة (إنهاء، إضافة مصروف...)
           _buildQuickActions(),
-
           const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  // ودجت الهيدر
   Widget _buildHeader(BuildContext context, DeviceProvider provider) {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -229,13 +215,12 @@ class DevicesPage extends StatelessWidget {
     );
   }
 
-  // ودجت ملخص الشيفت
   Widget _buildShiftSummary() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Row(
-          children: [
+        Row(
+          children: const [
             Icon(Icons.bar_chart, color: Color(0xFF00D2FF), size: 18),
             SizedBox(width: 6),
             Text(
@@ -295,7 +280,6 @@ class DevicesPage extends StatelessWidget {
     );
   }
 
-  // أزرار التحكم السريع
   Widget _buildQuickActions() {
     return GridView.count(
       shrinkWrap: true,
@@ -431,7 +415,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          // 1. رأس الكارت (الاسم والنوع)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -459,8 +442,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               ),
             ],
           ),
-
-          // 2. الأسعار (سنجل / مالتي)
           Container(
             padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
             decoration: BoxDecoration(
@@ -477,8 +458,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               ],
             ),
           ),
-
-          // 3. الوقت والمبلغ
           Column(
             children: [
               Text(
@@ -501,8 +480,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               ),
             ],
           ),
-
-          // 4. أزرار التبديل (سنجل / مالتي)
           Container(
             height: 26,
             decoration: BoxDecoration(
@@ -520,15 +497,12 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
               ],
             ),
           ),
-
-          // 5. زر التحكم الرئيسي (إبدأ / إنهاء)
           SizedBox(
             width: double.infinity,
             height: 30,
             child: device.isOccupied
                 ? Row(
                     children: [
-                      // زر إيقاف مؤقت
                       IconButton(
                         constraints: const BoxConstraints(),
                         padding: EdgeInsets.zero,
@@ -542,7 +516,6 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
                         },
                       ),
                       const SizedBox(width: 4),
-                      // زر إنهاء الجلسة
                       Expanded(
                         child: ElevatedButton(
                           style: ElevatedButton.styleFrom(
@@ -595,4 +568,20 @@ class _DeviceGridCardState extends State<DeviceGridCard> {
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF2563EB) : Colors.transparent,
-      
+            borderRadius: BorderRadius.circular(5),
+          ),
+          child: Center(
+            child: Text(
+              title,
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white38,
+                fontSize: 10,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
